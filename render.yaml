@@ -1,0 +1,19 @@
+databases:
+  - name: fitness-backend-db
+services:
+  - type: web
+    name: fitness-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: SUPABASE_URL
+        fromDatabase:
+          name: fitness-backend-db
+          property: connectionString
+      - key: SUPABASE_ANON_KEY
+        value: tu-supabase-anon-key
+      - key: PORT
+        value: 5000
+      - key: FRONTEND_URL
+        value: tu-frontend-url-en-vercel
