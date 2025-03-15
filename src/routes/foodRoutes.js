@@ -1,10 +1,15 @@
-// routes/foodRoutes.js
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
 const API_URL = 'https://platform.fatsecret.com/rest/server.api';
-const CONSUMER_KEY = '50715eed347845a4a4e6a9fa7f5dcd41';
-const CONSUMER_SECRET = 'a018e06d330242b7bca038cdadb88b63';
+const CONSUMER_KEY = process.env.FATSECRET_CONSUMER_KEY;
+const CONSUMER_SECRET = process.env.FATSECRET_CONSUMER_SECRET;
 const OAUTH_VERSION = '1.0';
 const OAUTH_SIGNATURE_METHOD = 'HMAC-SHA1';
 
@@ -21,29 +26,60 @@ const generateSignature = (method, url, params) => {
   return CryptoJS.HmacSHA1(baseString, signingKey).toString(CryptoJS.enc.Base64);
 };
 
+// Función para traducir texto usando la API de OpenAI (GPT-4o Mini)
+const translateTextWithOpenAI = async (text, targetLang = 'en') => {
+  try {
+    const response = await axios.post(
+      OPENAI_API_URL,
+      {
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: `You are a translator. Translate the following text to ${targetLang}.` },
+          { role: 'user', content: text },
+        ],
+        max_tokens: 10,
+        temperature: 0.3,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return response.data.choices[0].message.content.trim();
+  } catch (error) {
+    console.error('Error al traducir con OpenAI:', error);
+    throw error;
+  }
+};
+
 export const searchFoods = async (req, res) => {
-  const { query, max_results = '10' } = req.query;
-
-  const params = {
-    method: 'foods.search',
-    oauth_consumer_key: CONSUMER_KEY,
-    oauth_nonce: generateNonce(),
-    oauth_timestamp: generateTimestamp(),
-    oauth_signature_method: OAUTH_SIGNATURE_METHOD,
-    oauth_version: OAUTH_VERSION,
-    format: 'json',
-    search_expression: query,
-    max_results: max_results,
-  };
-
-  const signature = generateSignature('GET', API_URL, params);
-  params.oauth_signature = signature;
+  let { query, max_results = '10' } = req.query;
 
   try {
+    // Traducir el query al inglés usando OpenAI
+    query = await translateTextWithOpenAI(query, 'en');
+
+    const params = {
+      method: 'foods.search',
+      oauth_consumer_key: CONSUMER_KEY,
+      oauth_nonce: generateNonce(),
+      oauth_timestamp: generateTimestamp(),
+      oauth_signature_method: OAUTH_SIGNATURE_METHOD,
+      oauth_version: OAUTH_VERSION,
+      format: 'json',
+      search_expression: query,
+      max_results: max_results,
+    };
+
+    const signature = generateSignature('GET', API_URL, params);
+    params.oauth_signature = signature;
+
     const response = await axios.get(API_URL, { params });
     res.json(response.data);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error al consultar la API de FatSecret' });
+    res.status(500).json({ error: 'Error al consultar la API de FatSecret o al traducir con OpenAI' });
   }
 };
