@@ -21,5 +21,13 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dano796/backend-all-in-one-fitness-app.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dano796/backend-all-in-one-fitness-app/issues"
+  },
+  "homepage": "https://github.com/dano796/backend-all-in-one-fitness-app#readme",
   "description": ""
 }
