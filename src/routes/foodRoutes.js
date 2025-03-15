@@ -26,8 +26,7 @@ const generateSignature = (method, url, params) => {
   return CryptoJS.HmacSHA1(baseString, signingKey).toString(CryptoJS.enc.Base64);
 };
 
-// Función para traducir texto usando la API de OpenAI (GPT-4o Mini)
-const translateTextWithOpenAI = async (text, targetLang = 'en') => {
+const translateTextWithOpenAI = async (text, targetLang = 'es') => {
   try {
     const response = await axios.post(
       OPENAI_API_URL,
@@ -37,7 +36,7 @@ const translateTextWithOpenAI = async (text, targetLang = 'en') => {
           { role: 'system', content: `You are a translator. Translate the following text to ${targetLang}.` },
           { role: 'user', content: text },
         ],
-        max_tokens: 10,
+        max_tokens: 15,
         temperature: 0.3,
       },
       {
@@ -58,7 +57,6 @@ export const searchFoods = async (req, res) => {
   let { query, max_results = '10' } = req.query;
 
   try {
-    // Traducir el query al inglés usando OpenAI
     query = await translateTextWithOpenAI(query, 'en');
 
     const params = {
@@ -77,7 +75,29 @@ export const searchFoods = async (req, res) => {
     params.oauth_signature = signature;
 
     const response = await axios.get(API_URL, { params });
-    res.json(response.data);
+    const foodData = response.data.foods.food;
+
+    if (!foodData) {
+      return res.json(response.data);
+    }
+
+    const translatedFoods = await Promise.all(
+      (Array.isArray(foodData) ? foodData : [foodData]).map(async (food) => {
+        const translatedName = await translateTextWithOpenAI(food.food_name, 'es');
+        return {
+          ...food,
+          food_name: translatedName,
+        };
+      })
+    );
+
+    res.json({
+      ...response.data,
+      foods: {
+        ...response.data.foods,
+        food: translatedFoods,
+      },
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al consultar la API de FatSecret o al traducir con OpenAI' });
