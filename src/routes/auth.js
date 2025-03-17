@@ -15,9 +15,32 @@ export const registrarUsuario = async (req, res) => {
         const usuarioLower = usuario.toLowerCase();
         console.log("Usuario convertido a minúsculas:", usuarioLower);
 
-        if (contraseña.length < 8) {
+        // Password validation
+        const hasUpperCase = /[A-Z]/.test(contraseña);
+        const hasLowerCase = /[a-z]/.test(contraseña);
+        const hasNumber = /\d/.test(contraseña);
+        const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(contraseña);
+        const isLongEnough = contraseña.length >= 8;
+
+        if (!isLongEnough) {
             console.log("Error: Contraseña demasiado corta");
             return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres." });
+        }
+        if (!hasUpperCase) {
+            console.log("Error: La contraseña debe contener al menos una letra mayúscula");
+            return res.status(400).json({ error: "La contraseña debe contener al menos una letra mayúscula." });
+        }
+        if (!hasLowerCase) {
+            console.log("Error: La contraseña debe contener al menos una letra minúscula");
+            return res.status(400).json({ error: "La contraseña debe contener al menos una letra minúscula." });
+        }
+        if (!hasNumber) {
+            console.log("Error: La contraseña debe contener al menos un número");
+            return res.status(400).json({ error: "La contraseña debe contener al menos un número." });
+        }
+        if (!hasSpecialChar) {
+            console.log("Error: La contraseña debe contener al menos un carácter especial");
+            return res.status(400).json({ error: "La contraseña debe contener al menos un carácter especial (e.g., !@#$%)." });
         }
 
         console.log("Verificando si el usuario existe en la tabla 'Inicio Sesion'...");
@@ -154,7 +177,7 @@ export const resetPasswordForEmail = async (req, res) => {
     const { email } = req.body;
 
     if (!email) {
-       return res.status(400).json({ error: "El correo es requerido." });
+        return res.status(400).json({ error: "El correo es requerido." });
     }
 
     try {
