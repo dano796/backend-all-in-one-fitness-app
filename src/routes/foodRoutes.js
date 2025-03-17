@@ -204,3 +204,67 @@ export const getFoodsByUserAndDate = async (req, res) => {
     res.status(500).json({ error: "Error interno al consultar las comidas" });
   }
 };
+
+export const deleteFood = async (req, res) => {
+  const { email, food_id } = req.body;
+
+  if (!email || !food_id) {
+    return res.status(400).json({ error: 'Faltan datos requeridos: email y food_id son obligatorios' });
+  }
+
+  try {
+    const { data: user, error: userError } = await supabase
+      .from("Inicio Sesion")
+      .select("idusuario")
+      .eq("Correo", email)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({ error: `Usuario con correo ${email} no encontrado` });
+    }
+
+    const idusuario = user.idusuario;
+    
+    const currentDate = new Date().toISOString().split("T")[0];
+
+    // Verificar si existe la comida para este usuario en el día actual
+    const { data: foods, error: foodError } = await supabase
+      .from("ComidasxUsuario")
+      .select("id_comida, fecha")
+      .eq("idusuario", idusuario)
+      .eq("id_comida", food_id)
+      .gte("fecha", `${currentDate}T00:00:00.000Z`)
+      .lte("fecha", `${currentDate}T23:59:59.999Z`);
+
+    if (foodError) {
+      console.log("Error al buscar comida:", foodError.message);
+      return res.status(500).json({ error: "Error al buscar la comida en la base de datos" });
+    }
+
+    if (!foods || foods.length === 0) {
+      console.log("Comidas encontradas:", foods);
+      return res.status(404).json({ error: `Comida con ID ${food_id} no encontrada para este usuario` });
+    }
+
+    // Eliminar solo la primera instancia (la más reciente) de la comida para el usuario en el día actual
+    const { error: deleteError } = await supabase
+      .from("ComidasxUsuario")
+      .delete()
+      .eq("idusuario", idusuario)
+      .eq("id_comida", food_id)
+      .gte("fecha", `${currentDate}T00:00:00.000Z`)
+      .lte("fecha", `${currentDate}T23:59:59.999Z`)
+      .order("fecha", { ascending: false }) // Ordenar por fecha descendente (más reciente primero)
+      .limit(1); // Limitar a eliminar solo una instancia
+
+    if (deleteError) {
+      console.log("Error al eliminar:", deleteError.message);
+      return res.status(500).json({ error: "Error al eliminar la comida de la base de datos" });
+    }
+
+    res.status(200).json({ message: "Comida eliminada con éxito" });
+  } catch (error) {
+    console.error("Error interno:", error);
+    res.status(500).json({ error: "Error interno al eliminar la comida" });
+  }
+};
