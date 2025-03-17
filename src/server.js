@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { registrarUsuario, loginUser, resetPasswordForEmail } from "./routes/auth.js";
-import { searchFoods, addFood } from "./routes/foodRoutes.js"; // Importar addFood
+import { searchFoods, addFood, getFoodsByUserAndDate } from "./routes/foodRoutes.js"; // Importar getFoodsByUserAndDate
 
 dotenv.config();
 
@@ -22,7 +22,8 @@ app.post("/api/register", registrarUsuario);
 app.post("/api/login", loginUser);
 app.post("/api/reset-password", resetPasswordForEmail);
 app.get("/api/foods/search", searchFoods);
-app.post("/api/foods/add", addFood); // Nueva ruta para agregar comida
+app.post("/api/foods/add", addFood); // Ruta para agregar comida
+app.get("/api/foods/user", getFoodsByUserAndDate); // Nueva ruta para consultar comidas por usuario y fecha
 
 // Iniciar el servidor
 app.listen(PORT, () => {

@@ -158,3 +158,43 @@ export const addFood = async (req, res) => {
     res.status(500).json({ error: "Error interno al agregar la comida" }); // Maneja errores inesperados
   }
 };
+
+// Endpoint para obtener las comidas registradas por un usuario en un día específico
+export const getFoodsByUserAndDate = async (req, res) => {
+  const { email, date } = req.query; // Extrae email y fecha de los parámetros de la solicitud
+
+  if (!email || !date) {
+    return res.status(400).json({ error: 'Faltan datos requeridos: email y date son obligatorios' });
+  }
+
+  try {
+    // Busca el ID del usuario en la tabla "Inicio Sesion" usando el correo
+    const { data: user, error: userError } = await supabase
+      .from("Inicio Sesion")
+      .select("idusuario")
+      .eq("Correo", email)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({ error: `Usuario con correo ${email} no encontrado` });
+    }
+
+    const idusuario = user.idusuario;
+
+    // Consulta las comidas registradas por el usuario en la fecha especificada
+    const { data: foods, error: foodsError } = await supabase
+      .from("ComidasxUsuario")
+      .select("id_comida, nombre_comida, descripcion, fecha")
+      .eq("idusuario", idusuario)
+      .gte("fecha", `${date}T00:00:00.000Z`) // Fecha de inicio del día
+      .lte("fecha", `${date}T23:59:59.999Z`); // Fecha de fin del día
+
+    if (foodsError) {
+      return res.status(500).json({ error: 'Error al consultar las comidas en la base de datos' });
+    }
+
+    res.status(200).json({ foods: foods || [] }); // Devuelve las comidas encontradas (o un arreglo vacío si no hay resultados)
+  } catch (error) {
+    res.status(500).json({ error: "Error interno al consultar las comidas" });
+  }
+};
