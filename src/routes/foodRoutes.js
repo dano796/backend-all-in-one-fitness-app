@@ -138,6 +138,12 @@ export const addFood = async (req, res) => {
 
     const idusuario = user.idusuario;
 
+    // Obtiene la fecha y hora local ajustada
+    const now = new Date();
+    const offsetHours = -5; // Ajusta esto según tu zona horaria (ejemplo: GMT-5)
+    now.setHours(now.getHours() + offsetHours); // Ajusta la hora local
+    const localDateISOString = now.toISOString(); // Convierte a formato ISO con la hora ajustada
+
     // Inserta la comida en la tabla "ComidasxUsuario" con los datos proporcionados
     const { error: insertError } = await supabase
       .from("ComidasxUsuario")
@@ -146,7 +152,7 @@ export const addFood = async (req, res) => {
         id_comida: food_id,
         nombre_comida: food_name,
         descripcion: food_description,
-        fecha: new Date().toISOString(), // Agrega la fecha actual en formato ISO
+        fecha: localDateISOString, // Usa la fecha ajustada
       });
 
     if (insertError) {
