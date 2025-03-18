@@ -1,7 +1,7 @@
 import { supabase } from "../lib/supabaseClient.js";
 
 // Registrar usuario
-export const registrarUsuario = async (req, res) => {
+export const registerUser = async (req, res) => {
     console.log("Solicitud recibida para /api/register:", req.body);
 
     try {
