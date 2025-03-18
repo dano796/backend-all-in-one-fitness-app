@@ -3,7 +3,7 @@ import CryptoJS from 'crypto-js';
 import dotenv from 'dotenv';
 import { supabase } from '../lib/supabaseClient.js';
 
-dotenv.config(); // Carga las variables de entorno desde el archivo .env
+dotenv.config();
 
 // Configuración de claves y URLs para las APIs
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -20,7 +20,7 @@ const generateNonce = () => Math.random().toString(36).substring(2, 15);
 // Genera un timestamp en formato UNIX (segundos desde 1970) para OAuth
 const generateTimestamp = () => Math.floor(Date.now() / 1000).toString();
 
-// Genera la firma HMAC-SHA1 requerida por la API de FatSecret para autenticación
+// Genera la firma HMAC-SHA1 requerida por la API de FatSecret
 const generateSignature = (method, url, params) => {
   const paramString = Object.keys(params)
     .sort()
@@ -60,16 +60,27 @@ const translateTextWithOpenAI = async (text, targetLang = 'es') => {
 
 // Endpoint para buscar alimentos en la API de FatSecret
 export const searchFoods = async (req, res) => {
-  let { query, max_results = '10' } = req.query; // Extrae la consulta y el máximo de resultados desde los parámetros de la solicitud
+  let { query, max_results = '10' } = req.query;
 
   if (!query) {
-    return res.status(400).json({ error: 'El parámetro "query" es requerido' }); // Valida que se haya proporcionado una consulta
+    return res.status(400).json({ error: 'El parámetro "query" es requerido' });
   }
 
   try {
-    query = await translateTextWithOpenAI(query, 'en'); // Traduce la consulta al inglés para la búsqueda en FatSecret
+    const now = new Date();
+    const localTime = now.toLocaleString('es-ES', {
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+    console.log(`[INFO] Solicitud de búsqueda recibida a las: ${localTime}`);
 
-    // Configura los parámetros OAuth y de búsqueda para la solicitud a FatSecret
+    query = await translateTextWithOpenAI(query, 'en');
+
     const params = {
       method: 'foods.search',
       oauth_consumer_key: CONSUMER_KEY,
@@ -82,17 +93,16 @@ export const searchFoods = async (req, res) => {
       max_results: max_results,
     };
 
-    const signature = generateSignature('GET', API_URL, params); // Genera la firma OAuth
+    const signature = generateSignature('GET', API_URL, params);
     params.oauth_signature = signature;
 
-    const response = await axios.get(API_URL, { params }); // Realiza la solicitud a la API de FatSecret
+    const response = await axios.get(API_URL, { params });
     const foodData = response.data.foods.food;
 
     if (!foodData) {
-      return res.json(response.data); // Si no hay datos de alimentos, devuelve la respuesta cruda
+      return res.json(response.data);
     }
 
-    // Traduce los nombres de los alimentos al español
     const translatedFoods = await Promise.all(
       (Array.isArray(foodData) ? foodData : [foodData]).map(async (food) => {
         const translatedName = await translateTextWithOpenAI(food.food_name, 'es');
@@ -103,7 +113,6 @@ export const searchFoods = async (req, res) => {
       })
     );
 
-    // Construye y envía la respuesta con los alimentos traducidos
     res.json({
       ...response.data,
       foods: {
@@ -112,69 +121,32 @@ export const searchFoods = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error(`[ERROR] Error al consultar la API de FatSecret o al traducir con OpenAI: ${error.message}`);
     res.status(500).json({ error: 'Error al consultar la API de FatSecret o al traducir con OpenAI' });
   }
 };
 
-// Endpoint para agregar una comida a la tabla ComidasxUsuario en Supabase
+// Endpoint para agregar una comida
 export const addFood = async (req, res) => {
-  const { email, food_id, food_name, food_description } = req.body; // Extrae los datos del cuerpo de la solicitud
+  const { email, food_id, food_name, food_description } = req.body;
 
   if (!email || !food_id || !food_name || !food_description) {
-    return res.status(400).json({ error: 'Faltan datos requeridos: email, food_id, food_name y food_description son obligatorios' }); // Valida que todos los campos necesarios estén presentes
+    return res.status(400).json({ error: 'Faltan datos requeridos: email, food_id, food_name y food_description son obligatorios' });
   }
 
   try {
-    // Busca el ID del usuario en la tabla "Inicio Sesion" usando el correo
-    const { data: user, error: userError } = await supabase
-      .from("Inicio Sesion")
-      .select("idusuario")
-      .eq("Correo", email)
-      .single();
-
-    if (userError || !user) {
-      return res.status(404).json({ error: `Usuario con correo ${email} no encontrado` }); // Maneja el caso en que no se encuentre el usuario
-    }
-
-    const idusuario = user.idusuario;
-
-    // Obtiene la fecha y hora local ajustada
     const now = new Date();
-    const offsetHours = -5; // Ajusta esto según tu zona horaria (ejemplo: GMT-5)
-    now.setHours(now.getHours() + offsetHours); // Ajusta la hora local
-    const localDateISOString = now.toISOString(); // Convierte a formato ISO con la hora ajustada
+    const localTime = now.toLocaleString('es-ES', {
+      timeZone: 'America/Bogota',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+    console.log(`[INFO] Solicitud de agregar comida recibida a las: ${localTime}`);
 
-    // Inserta la comida en la tabla "ComidasxUsuario" con los datos proporcionados
-    const { error: insertError } = await supabase
-      .from("ComidasxUsuario")
-      .insert({
-        idusuario: idusuario,
-        id_comida: food_id,
-        nombre_comida: food_name,
-        descripcion: food_description,
-        fecha: localDateISOString, // Usa la fecha ajustada
-      });
-
-    if (insertError) {
-      return res.status(500).json({ error: 'Error al guardar la comida en la base de datos' }); // Maneja errores en la inserción
-    }
-
-    res.status(200).json({ message: "Comida agregada con éxito" }); // Responde con éxito si la inserción se completa
-  } catch (error) {
-    res.status(500).json({ error: "Error interno al agregar la comida" }); // Maneja errores inesperados
-  }
-};
-
-// Endpoint para obtener las comidas registradas por un usuario en un día específico
-export const getFoodsByUserAndDate = async (req, res) => {
-  const { email, date } = req.query; // Extrae email y fecha de los parámetros de la solicitud
-
-  if (!email || !date) {
-    return res.status(400).json({ error: 'Faltan datos requeridos: email y date son obligatorios' });
-  }
-
-  try {
-    // Busca el ID del usuario en la tabla "Inicio Sesion" usando el correo
     const { data: user, error: userError } = await supabase
       .from("Inicio Sesion")
       .select("idusuario")
@@ -187,24 +159,137 @@ export const getFoodsByUserAndDate = async (req, res) => {
 
     const idusuario = user.idusuario;
 
-    // Consulta las comidas registradas por el usuario en la fecha especificada
+    const localDateISOString = now
+      .toLocaleString('sv-SE', { timeZone: 'America/Bogota' })
+      .replace(' ', 'T') + '.000';
+
+    const { error: insertError } = await supabase
+      .from("ComidasxUsuario")
+      .insert({
+        idusuario: idusuario,
+        id_comida: food_id,
+        nombre_comida: food_name,
+        descripcion: food_description,
+        fecha: localDateISOString,
+      });
+
+    if (insertError) {
+      return res.status(500).json({ error: 'Error al guardar la comida en la base de datos' });
+    }
+
+    res.status(200).json({ message: "Comida agregada con éxito" });
+  } catch (error) {
+    console.error(`[ERROR] Error interno al agregar la comida: ${error.message}`);
+    res.status(500).json({ error: "Error interno al agregar la comida" });
+  }
+};
+
+// Endpoint para obtener las comidas registradas por un usuario en un día específico
+export const getFoodsByUserAndDate = async (req, res) => {
+  const { email, date } = req.query;
+
+  if (!email || !date) {
+    return res.status(400).json({ error: 'Faltan datos requeridos: email y date son obligatorios' });
+  }
+
+  try {
+    const TIMEZONE = 'America/Bogota';
+    const now = new Date();
+    const serverLocalTime = now.toLocaleString('es-ES', {
+      timeZone: TIMEZONE,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+    console.log(`[INFO] Solicitud recibida a las (servidor): ${serverLocalTime}`);
+
+    const { data: user, error: userError } = await supabase
+      .from("Inicio Sesion")
+      .select("idusuario")
+      .eq("Correo", email)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({ error: `Usuario con correo ${email} no encontrado` });
+    }
+
+    const idusuario = user.idusuario;
+
     const { data: foods, error: foodsError } = await supabase
       .from("ComidasxUsuario")
       .select("id_comida, nombre_comida, descripcion, fecha")
       .eq("idusuario", idusuario)
-      .gte("fecha", `${date}T00:00:00.000Z`) // Fecha de inicio del día
-      .lte("fecha", `${date}T23:59:59.999Z`); // Fecha de fin del día
+      .gte("fecha", `${date}T00:00:00.000Z`)
+      .lte("fecha", `${date}T23:59:59.999Z`);
 
     if (foodsError) {
       return res.status(500).json({ error: 'Error al consultar las comidas en la base de datos' });
     }
 
-    res.status(200).json({ foods: foods || [] }); // Devuelve las comidas encontradas (o un arreglo vacío si no hay resultados)
+    // Determina el tipo de comida según la hora
+    const determineFoodType = (dateTime) => {
+      const date = new Date(dateTime);
+      const hour = parseInt(date.toLocaleString('es-ES', { timeZone: TIMEZONE, hour: '2-digit', hour12: false }), 10);
+      if (hour >= 5 && hour < 12) return "Desayuno";
+      if (hour >= 12 && hour < 15) return "Almuerzo";
+      if (hour >= 15 && hour < 19) return "Merienda";
+      if (hour >= 19 || hour < 2) return "Cena";
+      return "Otros";
+    };
+
+    // Determina el tipo de comida actual según la hora actual
+    const determineCurrentFoodType = () => {
+      const hour = parseInt(now.toLocaleString('es-ES', { timeZone: TIMEZONE, hour: '2-digit', hour12: false }), 10);
+      if (hour >= 5 && hour < 12) return "Desayuno";
+      if (hour >= 12 && hour < 15) return "Almuerzo";
+      if (hour >= 15 && hour < 19) return "Merienda";
+      if (hour >= 19 || hour < 2) return "Cena";
+      return "Otros";
+    };
+
+    // Verifica si la comida es del día actual
+    const isFoodFromToday = (foodDate) => {
+      const foodDateFormatted = new Date(foodDate).toLocaleDateString("en-CA", { timeZone: TIMEZONE });
+      const currentDateFormatted = now.toLocaleDateString("en-CA", { timeZone: TIMEZONE });
+      return foodDateFormatted === currentDateFormatted;
+    };
+
+    // Organiza las comidas y añade el campo isEditable
+    const organizedFoods = {
+      Desayuno: [],
+      Almuerzo: [],
+      Merienda: [],
+      Cena: [],
+    };
+
+    foods.forEach((food) => {
+      const foodType = determineFoodType(food.fecha);
+      if (foodType !== "Otros") {
+        organizedFoods[foodType].push({
+          ...food,
+          isEditable: isFoodFromToday(food.fecha),
+        });
+      }
+    });
+
+    const currentFoodType = determineCurrentFoodType();
+    const isToday = date === now.toLocaleDateString("en-CA", { timeZone: TIMEZONE });
+
+    res.status(200).json({
+      foods: organizedFoods,
+      currentFoodType: currentFoodType === "Otros" ? null : currentFoodType,
+      isToday,
+    });
   } catch (error) {
+    console.error(`[ERROR] Error interno al consultar las comidas: ${error.message}`);
     res.status(500).json({ error: "Error interno al consultar las comidas" });
   }
 };
 
+// Endpoint para eliminar una comida
 export const deleteFood = async (req, res) => {
   const { email, food_id } = req.body;
 
@@ -213,6 +298,18 @@ export const deleteFood = async (req, res) => {
   }
 
   try {
+    const now = new Date();
+    const localTime = now.toLocaleString('es-ES', {
+      timeZone: 'America/Bogota',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+    console.log(`[INFO] Solicitud de eliminación recibida a las: ${localTime}`);
+
     const { data: user, error: userError } = await supabase
       .from("Inicio Sesion")
       .select("idusuario")
@@ -224,10 +321,8 @@ export const deleteFood = async (req, res) => {
     }
 
     const idusuario = user.idusuario;
-    
-    const currentDate = new Date().toISOString().split("T")[0];
+    const currentDate = now.toISOString().split("T")[0];
 
-    // Verificar si existe la comida para este usuario en el día actual
     const { data: foods, error: foodError } = await supabase
       .from("ComidasxUsuario")
       .select("id_comida, fecha")
@@ -246,7 +341,6 @@ export const deleteFood = async (req, res) => {
       return res.status(404).json({ error: `Comida con ID ${food_id} no encontrada para este usuario` });
     }
 
-    // Eliminar solo la primera instancia (la más reciente) de la comida para el usuario en el día actual
     const { error: deleteError } = await supabase
       .from("ComidasxUsuario")
       .delete()
@@ -254,8 +348,8 @@ export const deleteFood = async (req, res) => {
       .eq("id_comida", food_id)
       .gte("fecha", `${currentDate}T00:00:00.000Z`)
       .lte("fecha", `${currentDate}T23:59:59.999Z`)
-      .order("fecha", { ascending: false }) // Ordenar por fecha descendente (más reciente primero)
-      .limit(1); // Limitar a eliminar solo una instancia
+      .order("fecha", { ascending: false })
+      .limit(1);
 
     if (deleteError) {
       console.log("Error al eliminar:", deleteError.message);
@@ -264,7 +358,7 @@ export const deleteFood = async (req, res) => {
 
     res.status(200).json({ message: "Comida eliminada con éxito" });
   } catch (error) {
-    console.error("Error interno:", error);
+    console.error(`[ERROR] Error interno al eliminar la comida: ${error.message}`);
     res.status(500).json({ error: "Error interno al eliminar la comida" });
   }
 };
