@@ -68,16 +68,6 @@ export const searchFoods = async (req, res) => {
 
   try {
     const now = new Date();
-    const localTime = now.toLocaleString('es-ES', {
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-    console.log(`[INFO] Solicitud de búsqueda recibida a las: ${localTime}`);
 
     query = await translateTextWithOpenAI(query, 'en');
 
@@ -136,16 +126,6 @@ export const addFood = async (req, res) => {
 
   try {
     const now = new Date();
-    const localTime = now.toLocaleString('es-ES', {
-      timeZone: 'America/Bogota',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-    console.log(`[INFO] Solicitud de agregar comida recibida a las: ${localTime}`);
 
     const { data: user, error: userError } = await supabase
       .from("Inicio Sesion")
@@ -195,16 +175,6 @@ export const getFoodsByUserAndDate = async (req, res) => {
   try {
     const TIMEZONE = 'America/Bogota';
     const now = new Date();
-    const serverLocalTime = now.toLocaleString('es-ES', {
-      timeZone: TIMEZONE,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-    console.log(`[INFO] Solicitud recibida a las (servidor): ${serverLocalTime}`);
 
     const { data: user, error: userError } = await supabase
       .from("Inicio Sesion")
@@ -299,16 +269,6 @@ export const deleteFood = async (req, res) => {
 
   try {
     const now = new Date();
-    const localTime = now.toLocaleString('es-ES', {
-      timeZone: 'America/Bogota',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-    console.log(`[INFO] Solicitud de eliminación recibida a las: ${localTime}`);
 
     const { data: user, error: userError } = await supabase
       .from("Inicio Sesion")
