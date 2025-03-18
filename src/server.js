@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { registerUser, loginUser, resetPasswordForEmail, registerUser } from "./routes/auth.js";
+import { registerUser, loginUser, resetPasswordForEmail} from "./routes/auth.js";
 import { searchFoods, addFood, getFoodsByUserAndDate, deleteFood } from "./routes/foodRoutes.js"; // Importar deleteFood
 
 dotenv.config();
