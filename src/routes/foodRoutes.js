@@ -71,65 +71,54 @@ const parseFoodDescription = (description) => {
   };
 
   if (!description) {
-    console.log('No description provided');
     return result;
   }
 
-  // Example description: "Per 101g - Calories: 289kcal | Fat: 19.45g | Carbs: 0.00g | Protein: 26.63g"
-  // or "Per 8 fl oz - Calories: 100kcal | Fat: 0.00g | Carbs: 28.00g | Protein: 0.00g"
-  // or "Per 2/3 cup - Calories: 170kcal | Fat: 9.00g | Carbs: 19.00g | Protein: 3.00g"
   const parts = description.split(' - ');
   if (parts.length < 2) {
-    console.log('Invalid description format:', description);
     return result;
   }
 
-  // Extract "Per 101g", "Per 8 fl oz", or "Per 2/3 cup" with more flexible matching
-  const perPart = parts[0].trim(); // "Per 101g" or "Per 8 fl oz" or "Per 2/3 cup"
-  const perMatchG = perPart.match(/Per\s+(\d+(?:\.\d+)?)\s*g/i); // Matches "Per 101g" or "Per 1.5g"
-  const perMatchOz = perPart.match(/Per\s+([\d\/]+)\s*(fl\s*)?oz/i); // Matches "Per 8 fl oz" or "Per 2 oz"
-  const perMatchCup = perPart.match(/Per\s+([\d\/]+)\s*(cup|cups)/i); // Matches "Per 2/3 cup" or "Per 1 cup"
+  const perPart = parts[0].trim();
+
+  const perMatchG = perPart.match(/Per\s+(\d+(?:\.\d+)?)\s*g/i);
+  const perMatchOz = perPart.match(/Per\s+([\d\/]+)\s*(fl\s*)?oz/i);
+  const perMatchCup = perPart.match(/Per\s+([\d\/]+)\s*(cup|cups)/i);
 
   if (perMatchG) {
-    result.perg = parseInt(perMatchG[1], 10); // e.g., 101
-    console.log(`Parsed perg: ${result.perg} from ${perPart}`);
+    result.perg = parseInt(perMatchG[1], 10);
   } else if (perMatchOz) {
-    const ozValue = perMatchOz[1]; // e.g., "8" or "2"
-    result.peroz = parseFraction(ozValue); // Convert to number or keep as string if fraction
-    console.log(`Parsed peroz: ${result.peroz} from ${perPart}`);
+    const ozValue = perMatchOz[1];
+    result.peroz = parseFraction(ozValue);
   } else if (perMatchCup) {
-    const cupValue = perMatchCup[1]; // e.g., "2/3" or "1"
-    result.percup = parseFraction(cupValue); // Keep as string if fraction, e.g., "2/3" or "3/2"
-    console.log(`Parsed percup: ${result.percup} from ${perPart}`);
-  } else {
-    console.log(`No match found for per unit in: ${perPart}`);
+    const cupValue = perMatchCup[1];
+    result.percup = parseFraction(cupValue);
   }
 
-  // Extract nutritional values
-  const nutritionPart = parts[1].split(' | '); // ["Calories: 100kcal", "Fat: 0.00g", "Carbs: 28.00g", "Protein: 0.00g"]
+  const nutritionPart = parts[1].split(' | ');
   nutritionPart.forEach((item) => {
     if (item.includes('Calories')) {
       const match = item.match(/Calories:\s*(\d+)\s*kcal/i);
-      if (match) result.calories = parseInt(match[1], 10); // e.g., 100
+      if (match) result.calories = parseInt(match[1], 10);
     } else if (item.includes('Fat')) {
       const match = item.match(/Fat:\s*([\d.]+)\s*g/i);
-      if (match) result.fat = parseFloat(match[1]); // e.g., 0.00
+      if (match) result.fat = parseFloat(match[1]);
     } else if (item.includes('Carbs')) {
       const match = item.match(/Carbs:\s*([\d.]+)\s*g/i);
-      if (match) result.carbs = parseFloat(match[1]); // e.g., 28.00
+      if (match) result.carbs = parseFloat(match[1]);
     } else if (item.includes('Protein')) {
       const match = item.match(/Protein:\s*([\d.]+)\s*g/i);
-      if (match) result.protein = parseFloat(match[1]); // e.g., 0.00
+      if (match) result.protein = parseFloat(match[1]);
     }
   });
 
-  console.log('Parsed result:', result);
   return result;
 };
 
 // Helper function to parse fractions or keep as string
 const parseFraction = (value) => {
   if (typeof value !== 'string') return null;
+
   const fractionMatch = value.match(/^(\d+)(?:\/(\d+))?$/);
   if (fractionMatch) {
     const whole = fractionMatch[1];
@@ -152,7 +141,6 @@ export const searchFoods = async (req, res) => {
 
   try {
     const now = new Date();
-
     query = await translateTextWithOpenAI(query, 'en');
 
     const params = {
@@ -195,17 +183,16 @@ export const searchFoods = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(`[ERROR] Error al consultar la API de FatSecret o al traducir con OpenAI: ${error.message}`);
     res.status(500).json({ error: 'Error al consultar la API de FatSecret o al traducir con OpenAI' });
   }
 };
 
 // Endpoint para agregar una comida
 export const addFood = async (req, res) => {
-  const { email, food_id, food_name, food_description } = req.body;
+  const { email, food_id, food_name, food_description, type } = req.body;
 
-  if (!email || !food_id || !food_name || !food_description) {
-    return res.status(400).json({ error: 'Faltan datos requeridos: email, food_id, food_name y food_description son obligatorios' });
+  if (!email || !food_id || !food_name || !food_description || !type) {
+    return res.status(400).json({ error: 'Faltan datos requeridos: email, food_id, food_name, food_description y type son obligatorios' });
   }
 
   try {
@@ -223,7 +210,6 @@ export const addFood = async (req, res) => {
 
     const idusuario = user.idusuario;
 
-    // Parse the food description to extract nutritional values
     const parsedDescription = parseFoodDescription(food_description);
 
     const localDateISOString = now
@@ -238,13 +224,14 @@ export const addFood = async (req, res) => {
         nombre_comida: food_name,
         descripcion: food_description,
         fecha: localDateISOString,
-        calorias: parsedDescription.calories, // e.g., 100
-        grasas: parsedDescription.fat,       // e.g., 0.00
-        carbs: parsedDescription.carbs,      // e.g., 28.00
-        proteina: parsedDescription.protein, // e.g., 0.00
-        perg: parsedDescription.perg,        // e.g., null
-        peroz: parsedDescription.peroz,      // e.g., 8
-        percup: parsedDescription.percup,    // e.g., "2/3" or "3/2"
+        calorias: parsedDescription.calories,
+        grasas: parsedDescription.fat,
+        carbs: parsedDescription.carbs,
+        proteina: parsedDescription.protein,
+        perg: parsedDescription.perg,
+        peroz: parsedDescription.peroz,
+        percup: parsedDescription.percup,
+        tipo: type,
       });
 
     if (insertError) {
@@ -253,7 +240,6 @@ export const addFood = async (req, res) => {
 
     res.status(200).json({ message: "Comida agregada con éxito" });
   } catch (error) {
-    console.error(`[ERROR] Error interno al agregar la comida: ${error.message}`);
     res.status(500).json({ error: "Error interno al agregar la comida" });
   }
 };
@@ -284,7 +270,7 @@ export const getFoodsByUserAndDate = async (req, res) => {
 
     const { data: foods, error: foodsError } = await supabase
       .from("ComidasxUsuario")
-      .select("id_comida, nombre_comida, descripcion, fecha, calorias, grasas, carbs, proteina, perg, peroz, percup")
+      .select("id_comida, nombre_comida, descripcion, fecha, calorias, grasas, carbs, proteina, perg, peroz, percup, tipo")
       .eq("idusuario", idusuario)
       .gte("fecha", `${date}T00:00:00.000Z`)
       .lte("fecha", `${date}T23:59:59.999Z`);
@@ -293,35 +279,6 @@ export const getFoodsByUserAndDate = async (req, res) => {
       return res.status(500).json({ error: 'Error al consultar las comidas en la base de datos' });
     }
 
-    // Determina el tipo de comida según la hora
-    const determineFoodType = (dateTime) => {
-      const date = new Date(dateTime);
-      const hour = parseInt(date.toLocaleString('es-ES', { timeZone: TIMEZONE, hour: '2-digit', hour12: false }), 10);
-      if (hour >= 5 && hour < 12) return "Desayuno";
-      if (hour >= 12 && hour < 15) return "Almuerzo";
-      if (hour >= 15 && hour < 19) return "Merienda";
-      if (hour >= 19 || hour < 2) return "Cena";
-      return "Otros";
-    };
-
-    // Determina el tipo de comida actual según la hora actual
-    const determineCurrentFoodType = () => {
-      const hour = parseInt(now.toLocaleString('es-ES', { timeZone: TIMEZONE, hour: '2-digit', hour12: false }), 10);
-      if (hour >= 5 && hour < 12) return "Desayuno";
-      if (hour >= 12 && hour < 15) return "Almuerzo";
-      if (hour >= 15 && hour < 19) return "Merienda";
-      if (hour >= 19 || hour < 2) return "Cena";
-      return "Otros";
-    };
-
-    // Verifica si la comida es del día actual
-    const isFoodFromToday = (foodDate) => {
-      const foodDateFormatted = new Date(foodDate).toLocaleDateString("en-CA", { timeZone: TIMEZONE });
-      const currentDateFormatted = now.toLocaleDateString("en-CA", { timeZone: TIMEZONE });
-      return foodDateFormatted === currentDateFormatted;
-    };
-
-    // Organiza las comidas y añade el campo isEditable
     const organizedFoods = {
       Desayuno: [],
       Almuerzo: [],
@@ -330,25 +287,23 @@ export const getFoodsByUserAndDate = async (req, res) => {
     };
 
     foods.forEach((food) => {
-      const foodType = determineFoodType(food.fecha);
-      if (foodType !== "Otros") {
-        organizedFoods[foodType].push({
+      if (food.tipo && organizedFoods[food.tipo]) {
+        organizedFoods[food.tipo].push({
           ...food,
-          isEditable: isFoodFromToday(food.fecha),
+          isEditable: new Date(food.fecha).toLocaleDateString("en-CA", { timeZone: TIMEZONE }) === new Date().toLocaleDateString("en-CA", { timeZone: TIMEZONE }),
         });
       }
     });
 
-    const currentFoodType = determineCurrentFoodType();
+    const currentFoodType = null; // No longer determined by time
     const isToday = date === now.toLocaleDateString("en-CA", { timeZone: TIMEZONE });
 
     res.status(200).json({
       foods: organizedFoods,
-      currentFoodType: currentFoodType === "Otros" ? null : currentFoodType,
+      currentFoodType,
       isToday,
     });
   } catch (error) {
-    console.error(`[ERROR] Error interno al consultar las comidas: ${error.message}`);
     res.status(500).json({ error: "Error interno al consultar las comidas" });
   }
 };
@@ -386,12 +341,10 @@ export const deleteFood = async (req, res) => {
       .lte("fecha", `${currentDate}T23:59:59.999Z`);
 
     if (foodError) {
-      console.log("Error al buscar comida:", foodError.message);
       return res.status(500).json({ error: "Error al buscar la comida en la base de datos" });
     }
 
     if (!foods || foods.length === 0) {
-      console.log("Comidas encontradas:", foods);
       return res.status(404).json({ error: `Comida con ID ${food_id} no encontrada para este usuario` });
     }
 
@@ -406,13 +359,11 @@ export const deleteFood = async (req, res) => {
       .limit(1);
 
     if (deleteError) {
-      console.log("Error al eliminar:", deleteError.message);
       return res.status(500).json({ error: "Error al eliminar la comida de la base de datos" });
     }
 
     res.status(200).json({ message: "Comida eliminada con éxito" });
   } catch (error) {
-    console.error(`[ERROR] Error interno al eliminar la comida: ${error.message}`);
     res.status(500).json({ error: "Error interno al eliminar la comida" });
   }
 };
