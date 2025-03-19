@@ -33,6 +33,7 @@ const generateSignature = (method, url, params) => {
 
 // Traduce texto usando la API de OpenAI (GPT-4o Mini)
 const translateTextWithOpenAI = async (text, targetLang = 'es') => {
+  console.log(`[INFO] Iniciando traducción de texto: "${text}" a ${targetLang}`);
   try {
     const response = await axios.post(
       OPENAI_API_URL,
@@ -52,24 +53,77 @@ const translateTextWithOpenAI = async (text, targetLang = 'es') => {
         },
       }
     );
-    return response.data.choices[0].message.content.trim();
+    const translatedText = response.data.choices[0].message.content.trim();
+    console.log(`[INFO] Traducción exitosa: "${text}" -> "${translatedText}"`);
+    return translatedText;
   } catch (error) {
+    console.error(`[ERROR] Error al traducir el texto con OpenAI: ${error.message}`);
     throw new Error('Error al traducir el texto con OpenAI');
   }
 };
 
+// Función para extraer datos nutricionales y valores de "per" de la descripción
+const extractNutritionalData = (description) => {
+  console.log(`[INFO] Extrayendo datos nutricionales de la descripción: "${description}"`);
+  const parts = description.split('|').map(part => part.trim());
+
+  // Extraer valores de "perg" y "peroz"
+  let perg = null, peroz = null;
+  const perPart = parts[0].toLowerCase();
+
+  // Verificar si es "Per #g"
+  const perGramMatch = perPart.match(/per\s+(\d+)\s*g/i);
+  if (perGramMatch) {
+    perg = perGramMatch[1]; // Extrae solo el número (e.g., "100")
+  }
+
+  // Verificar si es "Per # oz" o "Per # fl oz"
+  const perOzMatch = perPart.match(/per\s+(\d+)\s*(fl\s*)?oz/i);
+  if (perOzMatch) {
+    peroz = perOzMatch[1]; // Extrae solo el número (e.g., "8")
+  }
+
+  console.log(`[INFO] Valores de per extraídos: perg=${perg}, peroz=${peroz}`);
+
+  // Extraer valores numéricos con expresiones regulares
+  let calorias = null, grasas = null, carbs = null, proteina = null;
+
+  parts.forEach(part => {
+    if (part.includes('Calories:')) {
+      const match = part.match(/Calories:\s*(\d*\.?\d+)/i);
+      calorias = match ? match[1] : null;
+    }
+    if (part.includes('Fat:')) {
+      const match = part.match(/Fat:\s*(\d*\.?\d+)/i);
+      grasas = match ? match[1] : null;
+    }
+    if (part.includes('Carbs:')) {
+      const match = part.match(/Carbs:\s*(\d*\.?\d+)/i);
+      carbs = match ? match[1] : null;
+    }
+    if (part.includes('Protein:')) {
+      const match = part.match(/Protein:\s*(\d*\.?\d+)/i);
+      proteina = match ? match[1] : null;
+    }
+  });
+
+  console.log(`[INFO] Datos nutricionales extraídos: calorias=${calorias}, grasas=${grasas}, carbs=${carbs}, proteina=${proteina}`);
+  return { perg, peroz, calorias, grasas, carbs, proteina };
+};
+
 // Endpoint para buscar alimentos en la API de FatSecret
 export const searchFoods = async (req, res) => {
+  console.log(`[INFO] Entrando en endpoint searchFoods. Query: ${req.query.query}, Max Results: ${req.query.max_results}`);
   let { query, max_results = '10' } = req.query;
 
   if (!query) {
+    console.log(`[WARN] Parámetro "query" no proporcionado`);
     return res.status(400).json({ error: 'El parámetro "query" es requerido' });
   }
 
   try {
-    const now = new Date();
-
     query = await translateTextWithOpenAI(query, 'en');
+    console.log(`[INFO] Query traducido a inglés: ${query}`);
 
     const params = {
       method: 'foods.search',
@@ -83,26 +137,43 @@ export const searchFoods = async (req, res) => {
       max_results: max_results,
     };
 
+    console.log(`[INFO] Parámetros para la firma OAuth: ${JSON.stringify(params)}`);
     const signature = generateSignature('GET', API_URL, params);
     params.oauth_signature = signature;
+    console.log(`[INFO] Firma OAuth generada: ${signature}`);
 
+    console.log(`[INFO] Realizando solicitud a FatSecret API con params: ${JSON.stringify(params)}`);
     const response = await axios.get(API_URL, { params });
+    console.log(`[INFO] Respuesta recibida de FatSecret API: ${JSON.stringify(response.data)}`);
     const foodData = response.data.foods.food;
 
     if (!foodData) {
+      console.log(`[INFO] No se encontraron alimentos en la respuesta`);
       return res.json(response.data);
     }
 
     const translatedFoods = await Promise.all(
       (Array.isArray(foodData) ? foodData : [foodData]).map(async (food) => {
+        console.log(`[INFO] Traduciendo nombre de alimento: ${food.food_name}`);
         const translatedName = await translateTextWithOpenAI(food.food_name, 'es');
+        const serving = food.servings?.serving?.[0] || {};
+        const description = serving.measurement_description || food.food_description || 'Per 100g';
+        const { perg, peroz, calorias, grasas, carbs, proteina } = extractNutritionalData(description);
+        console.log(`[INFO] Datos extraídos de descripción: perg=${perg}, peroz=${peroz}, calorias=${calorias}, grasas=${grasas}, carbs=${carbs}, proteina=${proteina}`);
         return {
           ...food,
           food_name: translatedName,
+          perg,
+          peroz,
+          calorias,
+          grasas,
+          carbs,
+          proteina,
         };
       })
     );
 
+    console.log(`[INFO] Alimentos traducidos: ${JSON.stringify(translatedFoods)}`);
     res.json({
       ...response.data,
       foods: {
@@ -110,6 +181,7 @@ export const searchFoods = async (req, res) => {
         food: translatedFoods,
       },
     });
+    console.log(`[INFO] Respuesta enviada al cliente`);
   } catch (error) {
     console.error(`[ERROR] Error al consultar la API de FatSecret o al traducir con OpenAI: ${error.message}`);
     res.status(500).json({ error: 'Error al consultar la API de FatSecret o al traducir con OpenAI' });
@@ -118,15 +190,19 @@ export const searchFoods = async (req, res) => {
 
 // Endpoint para agregar una comida
 export const addFood = async (req, res) => {
-  const { email, food_id, food_name, food_description } = req.body;
+  console.log(`[INFO] Entrando en endpoint addFood. Datos recibidos: ${JSON.stringify(req.body)}`);
+  const { email, food_id, food_name, food_description, calorias, grasas, carbs, proteina, perg, peroz } = req.body;
 
   if (!email || !food_id || !food_name || !food_description) {
+    console.log(`[WARN] Faltan datos requeridos: email=${email}, food_id=${food_id}, food_name=${food_name}, food_description=${food_description}`);
     return res.status(400).json({ error: 'Faltan datos requeridos: email, food_id, food_name y food_description son obligatorios' });
   }
 
   try {
-    const now = new Date();
+    const now = new Date().toISOString();
+    console.log(`[INFO] Fecha actual: ${now}`);
 
+    console.log(`[INFO] Buscando usuario con email: ${email}`);
     const { data: user, error: userError } = await supabase
       .from("Inicio Sesion")
       .select("idusuario")
@@ -134,15 +210,25 @@ export const addFood = async (req, res) => {
       .single();
 
     if (userError || !user) {
+      console.log(`[ERROR] Usuario no encontrado o error en consulta. Email: ${email}, Error: ${userError?.message || 'Usuario no existe'}`);
       return res.status(404).json({ error: `Usuario con correo ${email} no encontrado` });
     }
 
     const idusuario = user.idusuario;
+    console.log(`[INFO] Usuario encontrado. ID: ${idusuario}`);
 
-    const localDateISOString = now
-      .toLocaleString('sv-SE', { timeZone: 'America/Bogota' })
-      .replace(' ', 'T') + '.000';
+    // Extraer datos de la descripción si no se proporcionan en el cuerpo
+    const { perg: extractedPerg, peroz: extractedPeroz, calorias: extractedCalorias, grasas: extractedGrasas, carbs: extractedCarbs, proteina: extractedProteina } = extractNutritionalData(food_description);
+    const finalPerg = perg || extractedPerg;
+    const finalPeroz = peroz || extractedPeroz;
+    const finalCalorias = calorias || extractedCalorias;
+    const finalGrasas = grasas || extractedGrasas;
+    const finalCarbs = carbs || extractedCarbs;
+    const finalProteina = proteina || extractedProteina;
 
+    console.log(`[INFO] Valores finales: perg=${finalPerg}, peroz=${finalPeroz}, calorias=${finalCalorias}, grasas=${finalGrasas}, carbs=${finalCarbs}, proteina=${finalProteina}`);
+
+    console.log(`[INFO] Insertando comida en la base de datos con datos: idusuario=${idusuario}, id_comida=${food_id}, nombre_comida=${food_name}, descripcion=${food_description}, fecha=${now}, perg=${finalPerg}, peroz=${finalPeroz}, calorias=${finalCalorias}, grasas=${finalGrasas}, carbs=${finalCarbs}, proteina=${finalProteina}`);
     const { error: insertError } = await supabase
       .from("ComidasxUsuario")
       .insert({
@@ -150,13 +236,21 @@ export const addFood = async (req, res) => {
         id_comida: food_id,
         nombre_comida: food_name,
         descripcion: food_description,
-        fecha: localDateISOString,
+        fecha: now,
+        perg: finalPerg,
+        peroz: finalPeroz,
+        calorias: finalCalorias || null,
+        grasas: finalGrasas || null,
+        carbs: finalCarbs || null,
+        proteina: finalProteina || null,
       });
 
     if (insertError) {
+      console.log(`[ERROR] Error al guardar la comida en la base de datos: ${insertError.message}`);
       return res.status(500).json({ error: 'Error al guardar la comida en la base de datos' });
     }
 
+    console.log(`[INFO] Comida agregada con éxito`);
     res.status(200).json({ message: "Comida agregada con éxito" });
   } catch (error) {
     console.error(`[ERROR] Error interno al agregar la comida: ${error.message}`);
@@ -166,16 +260,20 @@ export const addFood = async (req, res) => {
 
 // Endpoint para obtener las comidas registradas por un usuario en un día específico
 export const getFoodsByUserAndDate = async (req, res) => {
+  console.log(`[INFO] Entrando en endpoint getFoodsByUserAndDate. Query: ${JSON.stringify(req.query)}`);
   const { email, date } = req.query;
 
   if (!email || !date) {
+    console.log(`[WARN] Faltan datos requeridos: email=${email}, date=${date}`);
     return res.status(400).json({ error: 'Faltan datos requeridos: email y date son obligatorios' });
   }
 
   try {
     const TIMEZONE = 'America/Bogota';
     const now = new Date();
+    console.log(`[INFO] Fecha actual: ${now.toISOString()}`);
 
+    console.log(`[INFO] Buscando usuario con email: ${email}`);
     const { data: user, error: userError } = await supabase
       .from("Inicio Sesion")
       .select("idusuario")
@@ -183,51 +281,26 @@ export const getFoodsByUserAndDate = async (req, res) => {
       .single();
 
     if (userError || !user) {
+      console.log(`[ERROR] Usuario no encontrado o error en consulta. Email: ${email}, Error: ${userError?.message || 'Usuario no existe'}`);
       return res.status(404).json({ error: `Usuario con correo ${email} no encontrado` });
     }
 
     const idusuario = user.idusuario;
+    console.log(`[INFO] Usuario encontrado. ID: ${idusuario}`);
 
+    console.log(`[INFO] Consultando comidas para usuario ${idusuario} en fecha ${date}`);
     const { data: foods, error: foodsError } = await supabase
       .from("ComidasxUsuario")
-      .select("id_comida, nombre_comida, descripcion, fecha")
+      .select("id_comida, nombre_comida, descripcion, fecha, perg, peroz, calorias, grasas, carbs, proteina")
       .eq("idusuario", idusuario)
-      .gte("fecha", `${date}T00:00:00.000Z`)
-      .lte("fecha", `${date}T23:59:59.999Z`);
+      .eq("fecha::date", date);
 
     if (foodsError) {
+      console.log(`[ERROR] Error al consultar las comidas en la base de datos: ${foodsError.message}`);
       return res.status(500).json({ error: 'Error al consultar las comidas en la base de datos' });
     }
 
-    // Determina el tipo de comida según la hora
-    const determineFoodType = (dateTime) => {
-      const date = new Date(dateTime);
-      const hour = parseInt(date.toLocaleString('es-ES', { timeZone: TIMEZONE, hour: '2-digit', hour12: false }), 10);
-      if (hour >= 5 && hour < 12) return "Desayuno";
-      if (hour >= 12 && hour < 15) return "Almuerzo";
-      if (hour >= 15 && hour < 19) return "Merienda";
-      if (hour >= 19 || hour < 2) return "Cena";
-      return "Otros";
-    };
-
-    // Determina el tipo de comida actual según la hora actual
-    const determineCurrentFoodType = () => {
-      const hour = parseInt(now.toLocaleString('es-ES', { timeZone: TIMEZONE, hour: '2-digit', hour12: false }), 10);
-      if (hour >= 5 && hour < 12) return "Desayuno";
-      if (hour >= 12 && hour < 15) return "Almuerzo";
-      if (hour >= 15 && hour < 19) return "Merienda";
-      if (hour >= 19 || hour < 2) return "Cena";
-      return "Otros";
-    };
-
-    // Verifica si la comida es del día actual
-    const isFoodFromToday = (foodDate) => {
-      const foodDateFormatted = new Date(foodDate).toLocaleDateString("en-CA", { timeZone: TIMEZONE });
-      const currentDateFormatted = now.toLocaleDateString("en-CA", { timeZone: TIMEZONE });
-      return foodDateFormatted === currentDateFormatted;
-    };
-
-    // Organiza las comidas y añade el campo isEditable
+    console.log(`[INFO] Comidas encontradas: ${JSON.stringify(foods)}`);
     const organizedFoods = {
       Desayuno: [],
       Almuerzo: [],
@@ -236,21 +309,19 @@ export const getFoodsByUserAndDate = async (req, res) => {
     };
 
     foods.forEach((food) => {
-      const foodType = determineFoodType(food.fecha);
-      if (foodType !== "Otros") {
-        organizedFoods[foodType].push({
-          ...food,
-          isEditable: isFoodFromToday(food.fecha),
-        });
-      }
+      organizedFoods["Otros"].push({
+        ...food,
+        isEditable: false,
+      });
     });
 
-    const currentFoodType = determineCurrentFoodType();
     const isToday = date === now.toLocaleDateString("en-CA", { timeZone: TIMEZONE });
+    console.log(`[INFO] ¿Es hoy? ${isToday}`);
 
+    console.log(`[INFO] Enviando respuesta al cliente con foods: ${JSON.stringify(organizedFoods)}`);
     res.status(200).json({
       foods: organizedFoods,
-      currentFoodType: currentFoodType === "Otros" ? null : currentFoodType,
+      currentFoodType: null,
       isToday,
     });
   } catch (error) {
@@ -261,15 +332,19 @@ export const getFoodsByUserAndDate = async (req, res) => {
 
 // Endpoint para eliminar una comida
 export const deleteFood = async (req, res) => {
+  console.log(`[INFO] Entrando en endpoint deleteFood. Datos recibidos: ${JSON.stringify(req.body)}`);
   const { email, food_id } = req.body;
 
   if (!email || !food_id) {
+    console.log(`[WARN] Faltan datos requeridos. Email: ${email}, Food ID: ${food_id}`);
     return res.status(400).json({ error: 'Faltan datos requeridos: email y food_id son obligatorios' });
   }
 
   try {
-    const now = new Date();
+    const now = new Date().toISOString();
+    console.log(`[INFO] Fecha actual obtenida: ${now}`);
 
+    console.log(`[INFO] Buscando usuario con email: ${email}`);
     const { data: user, error: userError } = await supabase
       .from("Inicio Sesion")
       .select("idusuario")
@@ -277,45 +352,52 @@ export const deleteFood = async (req, res) => {
       .single();
 
     if (userError || !user) {
+      console.log(`[ERROR] Usuario no encontrado o error en consulta. Email: ${email}, Error: ${userError?.message || 'Usuario no existe'}`);
       return res.status(404).json({ error: `Usuario con correo ${email} no encontrado` });
     }
 
     const idusuario = user.idusuario;
-    const currentDate = now.toISOString().split("T")[0];
+    console.log(`[INFO] Usuario encontrado. ID: ${idusuario}`);
 
+    const currentDate = new Date(now).toISOString().split("T")[0];
+    console.log(`[INFO] Fecha actual formateada: ${currentDate}`);
+
+    console.log(`[INFO] Buscando comida para usuario ${idusuario} con ID ${food_id} en fecha ${currentDate}`);
     const { data: foods, error: foodError } = await supabase
       .from("ComidasxUsuario")
       .select("id_comida, fecha")
       .eq("idusuario", idusuario)
       .eq("id_comida", food_id)
-      .gte("fecha", `${currentDate}T00:00:00.000Z`)
-      .lte("fecha", `${currentDate}T23:59:59.999Z`);
+      .eq("fecha::date", currentDate);
 
     if (foodError) {
-      console.log("Error al buscar comida:", foodError.message);
+      console.log(`[ERROR] Error al buscar comida: ${foodError.message}`);
       return res.status(500).json({ error: "Error al buscar la comida en la base de datos" });
     }
 
     if (!foods || foods.length === 0) {
-      console.log("Comidas encontradas:", foods);
+      console.log(`[WARN] No se encontraron comidas. ID comida: ${food_id}, Usuario: ${idusuario}, Fecha: ${currentDate}`);
       return res.status(404).json({ error: `Comida con ID ${food_id} no encontrada para este usuario` });
     }
 
+    console.log(`[INFO] Comida encontrada. Total registros: ${foods.length}, Detalle: ${JSON.stringify(foods)}`);
+
+    console.log(`[INFO] Eliminando comida para usuario ${idusuario}, ID comida: ${food_id}`);
     const { error: deleteError } = await supabase
       .from("ComidasxUsuario")
       .delete()
       .eq("idusuario", idusuario)
       .eq("id_comida", food_id)
-      .gte("fecha", `${currentDate}T00:00:00.000Z`)
-      .lte("fecha", `${currentDate}T23:59:59.999Z`)
+      .eq("fecha::date", currentDate)
       .order("fecha", { ascending: false })
       .limit(1);
 
     if (deleteError) {
-      console.log("Error al eliminar:", deleteError.message);
+      console.log(`[ERROR] Error al eliminar comida: ${deleteError.message}`);
       return res.status(500).json({ error: "Error al eliminar la comida de la base de datos" });
     }
 
+    console.log(`[INFO] Comida eliminada exitosamente para usuario ${idusuario}, ID comida: ${food_id}`);
     res.status(200).json({ message: "Comida eliminada con éxito" });
   } catch (error) {
     console.error(`[ERROR] Error interno al eliminar la comida: ${error.message}`);
