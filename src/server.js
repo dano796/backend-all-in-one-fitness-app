@@ -1,9 +1,9 @@
-// index.js
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { registerUser, loginUser, resetPasswordForEmail, setCalorieGoal, getCalorieGoal } from "./routes/auth.js";
 import { searchFoods, addFood, getFoodsByUserAndDate, deleteFood } from "./routes/foodRoutes.js";
+import { getWaterByUserAndDate, updateWaterData } from "./routes/authagua.js";
 
 dotenv.config();
 
@@ -28,6 +28,8 @@ app.get("/api/foods/user", getFoodsByUserAndDate);
 app.delete("/api/foods/delete", deleteFood);
 app.post("/api/set-calorie-goal", setCalorieGoal);
 app.get("/api/get-calorie-goal", getCalorieGoal);
+app.get("/api/water/user", getWaterByUserAndDate);
+app.post("/api/water/update", updateWaterData);
 
 // Iniciar el servidor
 app.listen(PORT, () => {
