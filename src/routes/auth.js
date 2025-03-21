@@ -194,3 +194,114 @@ export const resetPasswordForEmail = async (req, res) => {
         return res.status(500).json({ error: "Ocurrió un error inesperado. Inténtalo de nuevo." });
     }
 };
+
+export const setCalorieGoal = async (req, res) => {
+    const { email, calorieGoal } = req.body;
+
+    // Validación de datos requeridos
+    if (!email || calorieGoal === undefined) {
+        return res.status(400).json({ error: "Faltan datos requeridos: email y calorieGoal." });
+    }
+
+    // Validación del valor de calorieGoal
+    if (!Number.isInteger(calorieGoal)) {
+        return res.status(400).json({ error: "El límite de calorías debe ser un número entero." });
+    }
+
+    // Permitir calorieGoal: 0 para eliminar el límite, de lo contrario debe ser >= 2000
+    if (calorieGoal !== 0 && calorieGoal < 2000) {
+        return res.status(400).json({ error: "El límite de calorías debe ser 0 (para eliminar) o mayor o igual a 2000." });
+    }
+
+    try {
+        // Buscar el idusuario correspondiente al email en la tabla "Inicio Sesion"
+        const { data: userData, error: userError } = await supabase
+            .from("Inicio Sesion")
+            .select("idusuario")
+            .eq("Correo", email)
+            .single();
+
+        if (userError || !userData) {
+            console.log("Error al buscar el usuario:", userError);
+            return res.status(404).json({ error: "Usuario no encontrado." });
+        }
+
+        const idusuario = userData.idusuario;
+
+        if (calorieGoal === 0) {
+            // Si calorieGoal es 0, eliminar el registro de UserCalorieGoals
+            const { error: deleteError } = await supabase
+                .from("UserCalorieGoals")
+                .delete()
+                .eq("idusuario", idusuario);
+
+            if (deleteError) {
+                console.log("Error al eliminar el límite de calorías:", deleteError);
+                return res.status(500).json({ error: "Error al eliminar el límite de calorías." });
+            }
+
+            return res.status(200).json({ success: "Límite de calorías eliminado exitosamente." });
+        } else {
+            // Guardar el límite de calorías usando el idusuario
+            const { data, error } = await supabase
+                .from("UserCalorieGoals")
+                .upsert({ idusuario, calorie_goal: calorieGoal }, { onConflict: "idusuario" });
+
+            if (error) {
+                console.log("Error al establecer el límite de calorías:", error);
+                return res.status(500).json({ error: "Error al establecer el límite de calorías." });
+            }
+
+            return res.status(200).json({ success: "Límite de calorías establecido exitosamente.", calorieGoal });
+        }
+    } catch (err) {
+        console.error("Excepción no manejada en setCalorieGoal:", err);
+        return res.status(500).json({ error: "Ocurrió un error inesperado. Intenta de nuevo." });
+    }
+};
+
+// Obtener el límite de calorías de un usuario
+export const getCalorieGoal = async (req, res) => {
+    const { email } = req.query;
+
+    if (!email) {
+        return res.status(400).json({ error: "Falta el parámetro email." });
+    }
+
+    try {
+        // Buscar el idusuario correspondiente al email en la tabla "Inicio Sesion"
+        const { data: userData, error: userError } = await supabase
+            .from("Inicio Sesion")
+            .select("idusuario")
+            .eq("Correo", email)
+            .single();
+
+        if (userError || !userData) {
+            console.log("Error al buscar el usuario:", userError);
+            return res.status(404).json({ error: "Usuario no encontrado." });
+        }
+
+        const idusuario = userData.idusuario;
+
+        // Obtener el límite de calorías usando el idusuario
+        const { data, error } = await supabase
+            .from("UserCalorieGoals")
+            .select("calorie_goal")
+            .eq("idusuario", idusuario)
+            .single();
+
+        if (error) {
+            if (error.code === "PGRST116") {
+                // No se encontró un límite para el usuario
+                return res.status(200).json({ calorieGoal: null });
+            }
+            console.log("Error al obtener el límite de calorías:", error);
+            return res.status(500).json({ error: "Error al obtener el límite de calorías." });
+        }
+
+        return res.status(200).json({ calorieGoal: data?.calorie_goal || null });
+    } catch (err) {
+        console.error("Excepción no manejada en getCalorieGoal:", err);
+        return res.status(500).json({ error: "Ocurrió un error inesperado. Intenta de nuevo." });
+    }
+};
