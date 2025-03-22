@@ -1,9 +1,9 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { registerUser, loginUser, resetPasswordForEmail, setCalorieGoal, getCalorieGoal } from "./routes/auth.js";
-import { searchFoods, addFood, getFoodsByUserAndDate, deleteFood } from "./routes/foodRoutes.js";
-import { getWaterByUserAndDate, updateWaterData } from "./routes/authagua.js";
+import { registerUser, loginUser, resetPasswordForEmail, setCalorieGoal, getCalorieGoal } from "./controllers/authController.js";
+import { searchFoods, addFood, getFoodsByUserAndDate, deleteFood } from "./controllers/foodController.js";
+import { getWaterByUserAndDate, updateWaterData } from "./controllers/waterController.js";
 
 dotenv.config();
 
