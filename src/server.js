@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { registerUser, loginUser, resetPasswordForEmail, setCalorieGoal, getCalorieGoal } from "./controllers/authController.js";
 import { searchFoods, addFood, getFoodsByUserAndDate, deleteFood } from "./controllers/foodController.js";
 import { getWaterByUserAndDate, updateWaterData } from "./controllers/waterController.js";
+import { getExercises } from "./controllers/exerciseController.js";
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.post("/api/set-calorie-goal", setCalorieGoal);
 app.get("/api/get-calorie-goal", getCalorieGoal);
 app.get("/api/water/user", getWaterByUserAndDate);
 app.post("/api/water/update", updateWaterData);
+app.get("/api/exercises", getExercises);
 
 // Iniciar el servidor
 app.listen(PORT, () => {
