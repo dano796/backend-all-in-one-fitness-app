@@ -28,7 +28,6 @@ export async function fetchExercises(bodyPart) {
     },
   };
 
-  console.log('URL completa enviada a RapidAPI:', options.url);
   try {
     const response = await axios.request(options);
     const exercises = response.data;

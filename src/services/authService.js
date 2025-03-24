@@ -2,12 +2,10 @@ import { supabase } from '../config/supabaseClient.js';
 import { getIdUsuarioByEmail } from '../utils/helpers.js';
 
 export const registerUser = async ({ usuario, correo, contraseña }) => {
-  console.log("Solicitud recibida para registrar usuario:", { usuario, correo });
 
   const usuarioLower = usuario.toLowerCase();
-  console.log("Usuario convertido a minúsculas:", usuarioLower);
 
-  // Password validation
+  // Validar la contraseña
   const hasUpperCase = /[A-Z]/.test(contraseña);
   const hasLowerCase = /[a-z]/.test(contraseña);
   const hasNumber = /\d/.test(contraseña);
@@ -35,7 +33,6 @@ export const registerUser = async ({ usuario, correo, contraseña }) => {
     throw new Error("La contraseña debe contener al menos un carácter especial (e.g., !@#$%).");
   }
 
-  console.log("Verificando si el usuario existe en la tabla 'Inicio Sesion'...");
   const { data: usuarioExistente, error: usuarioError } = await supabase
     .from("Inicio Sesion")
     .select("Usuario")
@@ -53,7 +50,6 @@ export const registerUser = async ({ usuario, correo, contraseña }) => {
     throw new Error("El nombre de usuario ya está en uso.");
   }
 
-  console.log("Verificando si el correo existe en la tabla 'Inicio Sesion'...");
   const { data: correoExistente, error: correoError } = await supabase
     .from("Inicio Sesion")
     .select("Correo")
@@ -71,7 +67,6 @@ export const registerUser = async ({ usuario, correo, contraseña }) => {
     throw new Error("El correo ya está registrado.");
   }
 
-  console.log("Registrando usuario en Supabase Auth...");
   const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
     email: correo,
     password: contraseña,
@@ -82,16 +77,15 @@ export const registerUser = async ({ usuario, correo, contraseña }) => {
   });
 
   if (signUpError) {
-    console.log("Error al registrar en Supabase Auth:", signUpError);
+    console.log("Error al registrar en Supabase:", signUpError);
     if (signUpError.message.includes("User already registered")) {
       throw new Error("El correo ya está registrado pero no autenticado.");
     }
     throw new Error(`Error al registrar: ${signUpError.message}`);
   }
 
-  console.log("Usuario registrado en Supabase Auth:", signUpData);
+  console.log("Usuario registrado", signUpData);
 
-  console.log("Guardando usuario en la tabla 'Inicio Sesion'...");
   const { data: insertData, error: insertError } = await supabase
     .from("Inicio Sesion")
     .insert([
@@ -107,9 +101,6 @@ export const registerUser = async ({ usuario, correo, contraseña }) => {
     throw new Error("Error al guardar el usuario en la base de datos. Intenta de nuevo.");
   }
 
-  console.log("Usuario guardado en la tabla 'Inicio Sesion':", insertData);
-
-  console.log("Registro exitoso. Enviando respuesta...");
   return {
     success: `Registro exitoso. Verifica el correo enviado a ${correo} para activar tu cuenta.`,
   };
@@ -180,7 +171,6 @@ export const setCalorieGoal = async ({ email, calorieGoal }) => {
       .upsert({ idusuario, calorie_goal: calorieGoal }, { onConflict: "idusuario" });
 
     if (error) {
-      console.log("Error al establecer el límite de calorías:", error);
       throw new Error("Error al establecer el límite de calorías.");
     }
 
@@ -201,7 +191,6 @@ export const getCalorieGoal = async (email) => {
     if (error.code === "PGRST116") {
       return { calorieGoal: null };
     }
-    console.log("Error al obtener el límite de calorías:", error);
     throw new Error("Error al obtener el límite de calorías.");
   }
 
