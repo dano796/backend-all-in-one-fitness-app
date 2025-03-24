@@ -5,6 +5,7 @@ import { registerUser, loginUser, resetPasswordForEmail, setCalorieGoal, getCalo
 import { searchFoods, addFood, getFoodsByUserAndDate, deleteFood } from "./controllers/foodController.js";
 import { getWaterByUserAndDate, updateWaterData } from "./controllers/waterController.js";
 import { getExercises } from "./controllers/exerciseController.js";
+import { getUserRoutines, createRoutine, updateRoutine, deleteRoutine } from "./controllers/RoutineController.js";
 
 dotenv.config();
 
@@ -14,7 +15,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors({
   origin: process.env.FRONTEND_URL,
-  methods: ['GET', 'POST', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Added PUT for update operations
   allowedHeaders: ['Content-Type']
 }));
 app.use(express.json());
@@ -32,6 +33,12 @@ app.get("/api/get-calorie-goal", getCalorieGoal);
 app.get("/api/water/user", getWaterByUserAndDate);
 app.post("/api/water/update", updateWaterData);
 app.get("/api/exercises", getExercises);
+
+// Rutas para las rutinas
+app.get("/api/routines/user", getUserRoutines);
+app.post("/api/routines", createRoutine);
+app.put("/api/routines/:id", updateRoutine);
+app.delete("/api/routines/:id", deleteRoutine);
 
 // Iniciar el servidor
 app.listen(PORT, () => {
