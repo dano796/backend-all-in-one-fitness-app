@@ -223,3 +223,55 @@ export const deleteRoutine = async (req, res) => {
     res.status(500).json({ error: 'Error al eliminar la rutina' });
   }
 };
+// Obtener una rutina específica por ID
+export const getRoutineById = async (req, res) => {
+    const { id } = req.params;
+  
+    console.log(`[getRoutineById] Received request for routine ID: ${id}`);
+  
+    try {
+      console.log(`[getRoutineById] Querying routine with ID: ${id}`);
+      const { data, error } = await supabase
+        .from('Rutinas')
+        .select(`
+          id_rutina,
+          idusuario,
+          id_dia,
+          rutina,
+          ejercicios,
+          DiasRutinas (
+            desc_dia
+          )
+        `)
+        .eq('id_rutina', id)
+        .single();
+  
+      if (error) {
+        console.log(`[getRoutineById] Error querying routine: ${error.message}`);
+        throw error;
+      }
+  
+      if (!data) {
+        console.log(`[getRoutineById] Error: Routine not found for ID: ${id}`);
+        return res.status(404).json({ error: 'Rutina no encontrada' });
+      }
+  
+      console.log(`[getRoutineById] Retrieved routine:`, data);
+  
+      // Parsear el campo ejercicios si es una cadena
+      const exercises = typeof data.ejercicios === 'string' ? JSON.parse(data.ejercicios) : data.ejercicios || [];
+  
+      const formattedRoutine = {
+        id: data.id_rutina,
+        day: data.DiasRutinas.desc_dia,
+        name: data.rutina,
+        exercises: exercises,
+      };
+  
+      console.log(`[getRoutineById] Successfully formatted routine:`, formattedRoutine);
+      res.status(200).json({ routine: formattedRoutine });
+    } catch (error) {
+      console.error(`[getRoutineById] Unexpected error: ${error.message}`);
+      res.status(500).json({ error: 'Error al consultar la rutina' });
+    }
+  };

@@ -5,7 +5,8 @@ import { registerUser, loginUser, resetPasswordForEmail, setCalorieGoal, getCalo
 import { searchFoods, addFood, getFoodsByUserAndDate, deleteFood } from "./controllers/foodController.js";
 import { getWaterByUserAndDate, updateWaterData } from "./controllers/waterController.js";
 import { getExercises } from "./controllers/exerciseController.js";
-import { getUserRoutines, createRoutine, updateRoutine, deleteRoutine } from "./controllers/RoutineController.js";
+import { getUserRoutines, createRoutine, updateRoutine, deleteRoutine, getRoutineById} from "./controllers/RoutineController.js";
+
 
 dotenv.config();
 
@@ -39,6 +40,7 @@ app.get("/api/routines/user", getUserRoutines);
 app.post("/api/routines", createRoutine);
 app.put("/api/routines/:id", updateRoutine);
 app.delete("/api/routines/:id", deleteRoutine);
+app.get("/api/routines/:id", getRoutineById);
 
 // Iniciar el servidor
 app.listen(PORT, () => {
