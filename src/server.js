@@ -6,7 +6,7 @@ import { searchFoods, addFood, getFoodsByUserAndDate, deleteFood } from "./contr
 import { getWaterByUserAndDate, updateWaterData } from "./controllers/waterController.js";
 import { getExercises } from "./controllers/exerciseController.js";
 import { getUserRoutines, createRoutine, updateRoutine, deleteRoutine, getRoutineById} from "./controllers/RoutineController.js";
-
+import { calculateOneRepMax, saveOneRepMax } from './controllers/rmController.js';
 
 dotenv.config();
 
@@ -41,6 +41,9 @@ app.post("/api/routines", createRoutine);
 app.put("/api/routines/:id", updateRoutine);
 app.delete("/api/routines/:id", deleteRoutine);
 app.get("/api/routines/:id", getRoutineById);
+app.post('/api/1rm/calculate', calculateOneRepMax);
+app.post('/api/1rm/save', saveOneRepMax);
+
 
 // Iniciar el servidor
 app.listen(PORT, () => {
