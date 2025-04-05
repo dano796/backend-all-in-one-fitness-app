@@ -39,3 +39,17 @@ export const saveOneRepMax = async (req, res) => {
     return res.status(500).json({ error: err.message || 'Error al guardar el 1RM' });
   }
 };
+
+export const getRMProgress = async (req, res) => {
+  try {
+    const { email, exercise } = req.query;
+    if (!email || !exercise) {
+      return res.status(400).json({ error: 'Faltan datos requeridos: email y exercise son obligatorios' });
+    }
+
+    const result = await rmService.getRMProgress({ email, exercise });
+    return res.status(200).json({ rmRecords: result });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Error al obtener el progreso del 1RM' });
+  }
+};

@@ -5,8 +5,8 @@ import { registerUser, loginUser, resetPasswordForEmail, setCalorieGoal, getCalo
 import { searchFoods, addFood, getFoodsByUserAndDate, deleteFood } from "./controllers/foodController.js";
 import { getWaterByUserAndDate, updateWaterData } from "./controllers/waterController.js";
 import { getExercises } from "./controllers/exerciseController.js";
-import { getUserRoutines, createRoutine, updateRoutine, deleteRoutine, getRoutineById} from "./controllers/RoutineController.js";
-import { calculateOneRepMax, saveOneRepMax } from './controllers/rmController.js';
+import { getUserRoutines, createRoutine, updateRoutine, deleteRoutine, getRoutineById } from "./controllers/RoutineController.js";
+import { calculateOneRepMax, saveOneRepMax, getRMProgress } from './controllers/rmController.js'; // Importa todo de una vez
 
 dotenv.config();
 
@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors({
   origin: process.env.FRONTEND_URL,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Added PUT for update operations
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type']
 }));
 app.use(express.json());
@@ -41,9 +41,11 @@ app.post("/api/routines", createRoutine);
 app.put("/api/routines/:id", updateRoutine);
 app.delete("/api/routines/:id", deleteRoutine);
 app.get("/api/routines/:id", getRoutineById);
+
+// Rutas para el cálculo y almacenamiento del 1RM
 app.post('/api/1rm/calculate', calculateOneRepMax);
 app.post('/api/1rm/save', saveOneRepMax);
-
+app.get('/api/1rm/progress', getRMProgress);
 
 // Iniciar el servidor
 app.listen(PORT, () => {

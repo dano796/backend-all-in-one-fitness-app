@@ -49,3 +49,18 @@ export const saveOneRepMax = async ({ email, weight, unit, reps, rpe, rm_maximo,
 
   return { message: '1RM guardado con éxito' };
 };
+
+export const getRMProgress = async ({ email, exercise }) => {
+    const idusuario = await getIdUsuarioByEmail(email);
+  
+    const { data, error } = await supabase
+      .from('OneRepMaxRecords')
+      .select('rm_maximo, fecha, unidad') // Añadimos unidad
+      .eq('idusuario', idusuario)
+      .eq('ejercicio', exercise)
+      .order('fecha', { ascending: true });
+  
+    if (error) throw new Error('Error al consultar los registros: ' + error.message);
+  
+    return data;
+  };
