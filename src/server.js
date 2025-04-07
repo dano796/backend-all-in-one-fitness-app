@@ -6,7 +6,8 @@ import { searchFoods, addFood, getFoodsByUserAndDate, deleteFood } from "./contr
 import { getWaterByUserAndDate, updateWaterData } from "./controllers/waterController.js";
 import { getExercises } from "./controllers/exerciseController.js";
 import { getUserRoutines, createRoutine, updateRoutine, deleteRoutine, getRoutineById } from "./controllers/RoutineController.js";
-import { calculateOneRepMax, saveOneRepMax, getRMProgress } from './controllers/rmController.js'; // Importa todo de una vez
+import { calculateOneRepMax, saveOneRepMax, getRMProgress } from './controllers/rmController.js';
+import { getDashboardData } from './controllers/DashboardController.js'; // New import
 import swaggerUI from "swagger-ui-express"; 
 import specs from "../swagger/swagger.js";
 
@@ -48,6 +49,9 @@ app.get("/api/routines/:id", getRoutineById);
 app.post('/api/1rm/calculate', calculateOneRepMax);
 app.post('/api/1rm/save', saveOneRepMax);
 app.get('/api/1rm/progress', getRMProgress);
+
+// Nueva ruta para el dashboard
+app.get("/api/dashboard", getDashboardData);
 
 // Configuración de Swagger UI
 app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(specs)); 
