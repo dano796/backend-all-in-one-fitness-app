@@ -7,6 +7,8 @@ import { getWaterByUserAndDate, updateWaterData } from "./controllers/waterContr
 import { getExercises } from "./controllers/exerciseController.js";
 import { getUserRoutines, createRoutine, updateRoutine, deleteRoutine, getRoutineById } from "./controllers/RoutineController.js";
 import { calculateOneRepMax, saveOneRepMax, getRMProgress } from './controllers/rmController.js'; // Importa todo de una vez
+import swaggerUI from "swagger-ui-express"; 
+import specs from "../swagger/swagger.js";
 
 dotenv.config();
 
@@ -46,6 +48,9 @@ app.get("/api/routines/:id", getRoutineById);
 app.post('/api/1rm/calculate', calculateOneRepMax);
 app.post('/api/1rm/save', saveOneRepMax);
 app.get('/api/1rm/progress', getRMProgress);
+
+// Configuración de Swagger UI
+app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(specs)); 
 
 // Iniciar el servidor
 app.listen(PORT, () => {

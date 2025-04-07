@@ -1,0 +1,1191 @@
+openapi: 3.0.1
+info:
+  title: Fitness Tracker API
+  description: "API para la gestión de autenticación, objetivos calóricos, ejercicios, alimentos, consumo de agua, rutinas y cálculos de 1RM en una aplicación de seguimiento de fitness."
+  version: 1.0.0
+  contact:
+    email: soporte@fitnesstracker.com
+servers:
+  - url: http://localhost:5000
+    description: Servidor local de desarrollo
+tags:
+  - name: auth
+    description: Operaciones relacionadas con autenticación y gestión de usuarios
+  - name: exercise
+    description: Operaciones relacionadas con ejercicios
+  - name: food
+    description: Gestión de alimentos consumidos por los usuarios
+  - name: 1rm
+    description: Cálculo y seguimiento del One Rep Max (1RM)
+  - name: routine
+    description: Gestión de rutinas de entrenamiento
+  - name: water
+    description: Registro y actualización del consumo de agua
+paths:
+  /api/register:
+    post:
+      tags:
+        - auth
+      summary: Registra un nuevo usuario
+      operationId: registerUser
+      requestBody:
+        description: Datos del usuario para registrar
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+        required: true
+      responses:
+        "201":
+          description: Usuario registrado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Faltan datos requeridos (usuario, correo o contraseña)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error inesperado en el servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/login:
+    post:
+      tags:
+        - auth
+      summary: Inicia sesión de un usuario
+      operationId: loginUser
+      requestBody:
+        description: Credenciales del usuario
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "200":
+          description: Inicio de sesión exitoso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Faltan datos requeridos (input o password)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error inesperado en el servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/reset-password:
+    post:
+      tags:
+        - auth
+      summary: Restablece la contraseña de un usuario
+      operationId: resetPasswordForEmail
+      requestBody:
+        description: Correo del usuario para restablecer contraseña
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+        required: true
+      responses:
+        "200":
+          description: Solicitud de restablecimiento enviada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: El correo es requerido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error inesperado en el servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/set-calorie-goal:
+    post:
+      tags:
+        - auth
+      summary: Establece el objetivo calórico de un usuario
+      operationId: setCalorieGoal
+      requestBody:
+        description: Correo y objetivo calórico del usuario
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalorieGoalRequest"
+        required: true
+      responses:
+        "200":
+          description: Objetivo calórico establecido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Datos inválidos o faltantes (email, calorieGoal inválido)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error inesperado en el servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/get-calorie-goal:
+    get:
+      tags:
+        - auth
+      summary: Obtiene el objetivo calórico de un usuario
+      operationId: getCalorieGoal
+      parameters:
+        - name: email
+          in: query
+          description: Correo del usuario
+          required: true
+          schema:
+            type: string
+            format: email
+      responses:
+        "200":
+          description: Objetivo calórico obtenido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalorieGoalResponse"
+        "400":
+          description: Falta el parámetro email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error inesperado en el servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/exercises:
+    get:
+      tags:
+        - exercise
+      summary: Obtiene la lista de ejercicios según la parte del cuerpo
+      operationId: getExercises
+      parameters:
+        - name: bodyPart
+          in: query
+          description: Parte del cuerpo para filtrar los ejercicios
+          required: true
+          schema:
+            type: string
+            example: "chest"
+      responses:
+        "200":
+          description: Lista de ejercicios obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Exercise"
+        "400":
+          description: Falta el parámetro bodyPart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error al consultar los ejercicios
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/foods/search:
+    get:
+      tags:
+        - food
+      summary: Busca alimentos
+      operationId: searchFoods
+      parameters:
+        - name: query
+          in: query
+          description: Término de búsqueda para los alimentos
+          required: true
+          schema:
+            type: string
+            example: "apple"
+        - name: max_results
+          in: query
+          description: Número máximo de resultados a devolver (por defecto 10)
+          required: false
+          schema:
+            type: string
+            default: "10"
+            example: "10"
+      responses:
+        "200":
+          description: Lista de alimentos encontrados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Food"
+        "400":
+          description: Falta el parámetro query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error al consultar la API de FatSecret o al traducir
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/foods/add:
+    post:
+      tags:
+        - food
+      summary: Agrega un alimento consumido por el usuario
+      operationId: addFood
+      requestBody:
+        description: Datos del alimento a agregar
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FoodRequest"
+        required: true
+      responses:
+        "200":
+          description: Alimento agregado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Faltan datos requeridos (email, food_id, food_name, food_description, type)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error interno al agregar la comida
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/foods/user:
+    get:
+      tags:
+        - food
+      summary: Obtiene los alimentos de un usuario por fecha
+      operationId: getFoodsByUserAndDate
+      parameters:
+        - name: email
+          in: query
+          description: Correo del usuario
+          required: true
+          schema:
+            type: string
+            format: email
+            example: "juan@example.com"
+        - name: date
+          in: query
+          description: Fecha en formato YYYY-MM-DD
+          required: true
+          schema:
+            type: string
+            format: date
+            example: "2025-04-06"
+      responses:
+        "200":
+          description: Lista de alimentos del usuario
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Food"
+        "400":
+          description: Faltan datos requeridos (email o date)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error interno al consultar las comidas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/foods/delete:
+    delete:
+      tags:
+        - food
+      summary: Elimina un alimento registrado
+      operationId: deleteFood
+      requestBody:
+        description: Datos para eliminar el alimento
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteFoodRequest"
+        required: true
+      responses:
+        "200":
+          description: Alimento eliminado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Faltan datos requeridos (email o id_registro)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error interno al eliminar la comida
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/1rm/calculate:
+    post:
+      tags:
+        - 1rm
+      summary: Calcula el One Rep Max (1RM)
+      operationId: calculateOneRepMax
+      requestBody:
+        description: Datos para calcular el 1RM
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalculateOneRepMaxRequest"
+        required: true
+      responses:
+        "200":
+          description: 1RM calculado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  oneRepMax:
+                    type: number
+                    description: Valor del 1RM calculado
+                    example: 100
+        "400":
+          description: Datos inválidos o faltantes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error al calcular el 1RM
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/1rm/save:
+    post:
+      tags:
+        - 1rm
+      summary: Guarda un registro de One Rep Max (1RM)
+      operationId: saveOneRepMax
+      requestBody:
+        description: Datos para guardar el 1RM
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveOneRepMaxRequest"
+        required: true
+      responses:
+        "200":
+          description: 1RM guardado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Datos inválidos o faltantes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error al guardar el 1RM
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/1rm/progress:
+    get:
+      tags:
+        - 1rm
+      summary: Obtiene el progreso de 1RM de un usuario
+      operationId: getRMProgress
+      parameters:
+        - name: email
+          in: query
+          description: Correo del usuario
+          required: true
+          schema:
+            type: string
+            format: email
+            example: "juan@example.com"
+        - name: exercise
+          in: query
+          description: Nombre del ejercicio
+          required: true
+          schema:
+            type: string
+            example: "bench press"
+      responses:
+        "200":
+          description: Progreso de 1RM obtenido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rmRecords:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OneRepMaxRecord"
+        "400":
+          description: Faltan datos requeridos (email o exercise)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error al obtener el progreso del 1RM
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/routines/user:
+    get:
+      tags:
+        - routine
+      summary: Obtiene las rutinas de un usuario
+      operationId: getUserRoutines
+      parameters:
+        - name: email
+          in: query
+          description: Correo del usuario
+          required: true
+          schema:
+            type: string
+            format: email
+            example: "juan@example.com"
+      responses:
+        "200":
+          description: Lista de rutinas del usuario
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  routines:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Routine"
+        "400":
+          description: Falta el correo del usuario
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error al consultar las rutinas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/routines:
+    post:
+      tags:
+        - routine
+      summary: Crea una nueva rutina
+      operationId: createRoutine
+      requestBody:
+        description: Datos de la rutina a crear
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoutineRequest"
+        required: true
+      responses:
+        "201":
+          description: Rutina creada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  routine:
+                    $ref: "#/components/schemas/Routine"
+        "400":
+          description: Faltan datos requeridos (user_email, day, name)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Usuario o día no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error al crear la rutina
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/routines/{id}:
+    put:
+      tags:
+        - routine
+      summary: Actualiza una rutina existente
+      operationId: updateRoutine
+      parameters:
+        - name: id
+          in: path
+          description: ID de la rutina a actualizar
+          required: true
+          schema:
+            type: string
+            example: "123"
+      requestBody:
+        description: Datos para actualizar la rutina (ejercicios)
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRoutineRequest"
+        required: true
+      responses:
+        "200":
+          description: Rutina actualizada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  routine:
+                    $ref: "#/components/schemas/Routine"
+        "404":
+          description: Rutina no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error al actualizar la rutina
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - routine
+      summary: Elimina una rutina
+      operationId: deleteRoutine
+      parameters:
+        - name: id
+          in: path
+          description: ID de la rutina a eliminar
+          required: true
+          schema:
+            type: string
+            example: "123"
+      responses:
+        "200":
+          description: Rutina eliminada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "500":
+          description: Error al eliminar la rutina
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    get:
+      tags:
+        - routine
+      summary: Obtiene una rutina específica por ID
+      operationId: getRoutineById
+      parameters:
+        - name: id
+          in: path
+          description: ID de la rutina a obtener
+          required: true
+          schema:
+            type: string
+            example: "123"
+      responses:
+        "200":
+          description: Rutina obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  routine:
+                    $ref: "#/components/schemas/Routine"
+        "404":
+          description: Rutina no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error al consultar la rutina
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/water/user:
+    get:
+      tags:
+        - water
+      summary: Obtiene el consumo de agua de un usuario por fecha
+      operationId: getWaterByUserAndDate
+      parameters:
+        - name: email
+          in: query
+          description: Correo del usuario
+          required: true
+          schema:
+            type: string
+            format: email
+            example: "juan@example.com"
+        - name: date
+          in: query
+          description: Fecha en formato YYYY-MM-DD
+          required: true
+          schema:
+            type: string
+            format: date
+            example: "2025-04-06"
+      responses:
+        "200":
+          description: Datos de consumo de agua obtenidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaterResponse"
+        "400":
+          description: Faltan datos requeridos (email o date)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error en el servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/water/update:
+    post:
+      tags:
+        - water
+      summary: Actualiza el consumo de agua de un usuario
+      operationId: updateWaterData
+      requestBody:
+        description: Datos para actualizar el consumo de agua
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WaterRequest"
+        required: true
+      responses:
+        "200":
+          description: Consumo de agua actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Faltan datos requeridos (email, date, aguasllenadas)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error en el servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - usuario
+        - correo
+        - contraseña
+      properties:
+        usuario:
+          type: string
+          description: Nombre de usuario
+          example: "juanperez"
+        correo:
+          type: string
+          format: email
+          description: Correo electrónico del usuario
+          example: "juan@example.com"
+        contraseña:
+          type: string
+          format: password
+          description: Contraseña del usuario
+          example: "password123"
+    LoginRequest:
+      type: object
+      required:
+        - input
+        - password
+      properties:
+        input:
+          type: string
+          description: Correo o nombre de usuario para iniciar sesión
+          example: "juan@example.com"
+        password:
+          type: string
+          format: password
+          description: Contraseña del usuario
+          example: "password123"
+    ResetPasswordRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          description: Correo del usuario para restablecer contraseña
+          example: "juan@example.com"
+    CalorieGoalRequest:
+      type: object
+      required:
+        - email
+        - calorieGoal
+      properties:
+        email:
+          type: string
+          format: email
+          description: Correo del usuario
+          example: "juan@example.com"
+        calorieGoal:
+          type: integer
+          description: Objetivo calórico (0 para eliminar, >= 2000 para establecer)
+          example: 2500
+    CalorieGoalResponse:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: Correo del usuario
+          example: "juan@example.com"
+        calorieGoal:
+          type: integer
+          description: Objetivo calórico actual del usuario
+          example: 2500
+    AuthResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Mensaje de éxito
+          example: "Usuario registrado exitosamente"
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              description: ID del usuario
+              example: "12345"
+            usuario:
+              type: string
+              description: Nombre de usuario
+              example: "juanperez"
+            correo:
+              type: string
+              format: email
+              description: Correo electrónico
+              example: "juan@example.com"
+    SuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Mensaje de éxito
+          example: "Operación realizada con éxito"
+    Exercise:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador del ejercicio
+          example: "ex_001"
+        name:
+          type: string
+          description: Nombre del ejercicio
+          example: "Bench Press"
+        bodyPart:
+          type: string
+          description: Parte del cuerpo trabajada
+          example: "chest"
+        description:
+          type: string
+          description: Descripción del ejercicio
+          example: "Ejercicio para trabajar el pecho con barra"
+    Food:
+      type: object
+      properties:
+        food_id:
+          type: string
+          description: Identificador del alimento
+          example: "food_123"
+        food_name:
+          type: string
+          description: Nombre del alimento
+          example: "Apple"
+        food_description:
+          type: string
+          description: Descripción del alimento
+          example: "A fresh red apple"
+        type:
+          type: string
+          description: Tipo de alimento
+          example: "fruit"
+    FoodRequest:
+      type: object
+      required:
+        - email
+        - food_id
+        - food_name
+        - food_description
+        - type
+      properties:
+        email:
+          type: string
+          format: email
+          description: Correo del usuario
+          example: "juan@example.com"
+        food_id:
+          type: string
+          description: Identificador del alimento
+          example: "food_123"
+        food_name:
+          type: string
+          description: Nombre del alimento
+          example: "Apple"
+        food_description:
+          type: string
+          description: Descripción del alimento
+          example: "A fresh red apple"
+        type:
+          type: string
+          description: Tipo de alimento
+          example: "fruit"
+    DeleteFoodRequest:
+      type: object
+      required:
+        - email
+        - id_registro
+      properties:
+        email:
+          type: string
+          format: email
+          description: Correo del usuario
+          example: "juan@example.com"
+        id_registro:
+          type: string
+          description: Identificador del registro del alimento
+          example: "reg_456"
+    CalculateOneRepMaxRequest:
+      type: object
+      required:
+        - weight
+        - unit
+        - reps
+        - rpe
+        - exercise
+      properties:
+        weight:
+          type: number
+          description: Peso levantado
+          example: 80
+        unit:
+          type: string
+          enum: ["kg", "lb"]
+          description: Unidad del peso
+          example: "kg"
+        reps:
+          type: integer
+          description: Número de repeticiones
+          example: 5
+        rpe:
+          type: integer
+          description: Esfuerzo percibido (1-10)
+          example: 8
+        exercise:
+          type: string
+          description: Nombre del ejercicio
+          example: "bench press"
+    SaveOneRepMaxRequest:
+      type: object
+      required:
+        - email
+        - weight
+        - unit
+        - reps
+        - rpe
+        - rm_maximo
+        - fecha
+        - exercise
+      properties:
+        email:
+          type: string
+          format: email
+          description: Correo del usuario
+          example: "juan@example.com"
+        weight:
+          type: number
+          description: Peso levantado
+          example: 80
+        unit:
+          type: string
+          enum: ["kg", "lb"]
+          description: Unidad del peso
+          example: "kg"
+        reps:
+          type: integer
+          description: Número de repeticiones
+          example: 5
+        rpe:
+          type: integer
+          description: Esfuerzo percibido (1-10)
+          example: 8
+        rm_maximo:
+          type: number
+          description: Valor del 1RM calculado
+          example: 100
+        fecha:
+          type: string
+          format: date
+          description: Fecha del registro
+          example: "2025-04-06"
+        exercise:
+          type: string
+          description: Nombre del ejercicio
+          example: "bench press"
+    OneRepMaxRecord:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: Correo del usuario
+          example: "juan@example.com"
+        weight:
+          type: number
+          description: Peso levantado
+          example: 80
+        unit:
+          type: string
+          description: Unidad del peso
+          example: "kg"
+        reps:
+          type: integer
+          description: Número de repeticiones
+          example: 5
+        rpe:
+          type: integer
+          description: Esfuerzo percibido
+          example: 8
+        rm_maximo:
+          type: number
+          description: Valor del 1RM
+          example: 100
+        fecha:
+          type: string
+          format: date
+          description: Fecha del registro
+          example: "2025-04-06"
+        exercise:
+          type: string
+          description: Nombre del ejercicio
+          example: "bench press"
+    Routine:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador de la rutina
+          example: "123"
+        day:
+          type: string
+          description: Día de la rutina
+          example: "Monday"
+        name:
+          type: string
+          description: Nombre de la rutina
+          example: "Chest Day"
+        exercises:
+          type: array
+          description: Lista de ejercicios en la rutina
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                description: Nombre del ejercicio
+                example: "Bench Press"
+              sets:
+                type: integer
+                description: Número de series
+                example: 3
+              reps:
+                type: integer
+                description: Número de repeticiones
+                example: 10
+    CreateRoutineRequest:
+      type: object
+      required:
+        - user_email
+        - day
+        - name
+      properties:
+        user_email:
+          type: string
+          format: email
+          description: Correo del usuario
+          example: "juan@example.com"
+        day:
+          type: string
+          description: Día de la rutina
+          example: "Monday"
+        name:
+          type: string
+          description: Nombre de la rutina
+          example: "Chest Day"
+        exercises:
+          type: array
+          description: Lista de ejercicios (opcional)
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                description: Nombre del ejercicio
+                example: "Bench Press"
+              sets:
+                type: integer
+                description: Número de series
+                example: 3
+              reps:
+                type: integer
+                description: Número de repeticiones
+                example: 10
+    UpdateRoutineRequest:
+      type: object
+      required:
+        - exercises
+      properties:
+        exercises:
+          type: array
+          description: Lista de ejercicios para actualizar
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                description: Nombre del ejercicio
+                example: "Bench Press"
+              sets:
+                type: integer
+                description: Número de series
+                example: 3
+              reps:
+                type: integer
+                description: Número de repeticiones
+                example: 10
+    WaterRequest:
+      type: object
+      required:
+        - email
+        - date
+        - aguasllenadas
+      properties:
+        email:
+          type: string
+          format: email
+          description: Correo del usuario
+          example: "juan@example.com"
+        date:
+          type: string
+          format: date
+          description: Fecha del registro
+          example: "2025-04-06"
+        aguasllenadas:
+          type: integer
+          description: Cantidad de vasos de agua registrados
+          example: 8
+    WaterResponse:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: Correo del usuario
+          example: "juan@example.com"
+        date:
+          type: string
+          format: date
+          description: Fecha del registro
+          example: "2025-04-06"
+        aguasllenadas:
+          type: integer
+          description: Cantidad de vasos de agua registrados
+          example: 8
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Mensaje de error
+          example: "Faltan datos requeridos."
