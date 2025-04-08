@@ -1,5 +1,8 @@
 import { supabase } from '../config/supabaseClient.js';
 import { getIdUsuarioByEmail } from '../utils/helpers.js';
+import bcrypt, { hash } from 'bcrypt';
+
+const SALT_ROUNDS = 10;
 
 export const registerUser = async ({ usuario, correo, contraseña }) => {
 
@@ -67,6 +70,8 @@ export const registerUser = async ({ usuario, correo, contraseña }) => {
     throw new Error("El correo ya está registrado.");
   }
 
+  const hashedPassword = await bcrypt.hash(contraseña, SALT_ROUNDS);
+
   const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
     email: correo,
     password: contraseña,
@@ -92,7 +97,7 @@ export const registerUser = async ({ usuario, correo, contraseña }) => {
       {
         Usuario: usuarioLower,
         Correo: correo,
-        Contraseña: contraseña, // Nota: No se recomienda almacenar contraseñas en texto plano
+        Contraseña: hashedPassword,
       },
     ]);
 
@@ -113,7 +118,7 @@ export const loginUser = async ({ input, password }) => {
   if (!input.includes("@")) {
     const { data, error } = await supabase
       .from("Inicio Sesion")
-      .select("Correo")
+      .select("Correo, Contraseña")
       .eq("Usuario", inputLower)
       .single();
 
@@ -122,6 +127,26 @@ export const loginUser = async ({ input, password }) => {
     }
 
     email = data.Correo;
+    
+    const isPasswordValid = await bcrypt.compare(password, data.Contraseña);
+    if (!isPasswordValid) {
+      throw new Error("Credenciales incorrectas.");
+    }
+  } else {
+    const { data, error } = await supabase
+      .from("Inicio Sesion")
+      .select("Usuario, Contraseña")
+      .eq("Correo", inputLower)
+      .single();
+
+    if (error || !data) {
+      throw new Error("Correo no encontrado.");
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, data.Contraseña);
+    if (!isPasswordValid) {
+      throw new Error("Credenciales incorrectas.");
+    }
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
