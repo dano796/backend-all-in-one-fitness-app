@@ -55,7 +55,7 @@ export const getRMProgress = async ({ email, exercise }) => {
   
     const { data, error } = await supabase
       .from('OneRepMaxRecords')
-      .select('rm_maximo, fecha, unidad') // Añadimos unidad
+      .select('rm_maximo, fecha, unidad')
       .eq('idusuario', idusuario)
       .eq('ejercicio', exercise)
       .order('fecha', { ascending: true });

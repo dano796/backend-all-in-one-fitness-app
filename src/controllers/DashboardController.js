@@ -7,15 +7,14 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 export const getDashboardData = async (req, res) => {
   try {
     const { email, startDate, endDate } = req.query;
-    console.log(`[getDashboardData] Received request with email: ${email}, startDate: ${startDate}, endDate: ${endDate}`);
+    //console.log(`[getDashboardData] Received request with email: ${email}, startDate: ${startDate}, endDate: ${endDate}`);
 
     if (!email || !startDate || !endDate) {
       console.log('[getDashboardData] Missing required parameters');
       return res.status(400).json({ error: 'Faltan datos requeridos: email, startDate y endDate son obligatorios' });
     }
 
-    // Obtener el idusuario a partir del email usando la tabla Inicio Sesion
-    console.log('[getDashboardData] Fetching idusuario from Inicio Sesion...');
+    //console.log('[getDashboardData] Fetching idusuario from Inicio Sesion...');
     const { data: userData, error: userError } = await supabase
       .from('Inicio Sesion')
       .select('idusuario')
@@ -28,21 +27,20 @@ export const getDashboardData = async (req, res) => {
     }
 
     const userId = userData.idusuario;
-    console.log(`[getDashboardData] Fetched idusuario: ${userId}`);
+    //console.log(`[getDashboardData] Fetched idusuario: ${userId}`);
 
-    // Ajustar fechas a la zona horaria de Medellín (UTC-5)
     const start = new Date(startDate);
     start.setHours(start.getHours() - 5);
     const end = new Date(endDate);
     end.setHours(end.getHours() - 5);
-    console.log(`[getDashboardData] Adjusted start date: ${start.toISOString()}, end date: ${end.toISOString()}`);
+    //console.log(`[getDashboardData] Adjusted start date: ${start.toISOString()}, end date: ${end.toISOString()}`);
 
     // Obtener datos de comidas (calorías y macronutrientes)
-    console.log('[getDashboardData] Fetching food data from ComidasxUsuario...');
+    //console.log('[getDashboardData] Fetching food data from ComidasxUsuario...');
     const { data: foodData, error: foodError } = await supabase
       .from('ComidasxUsuario')
       .select('calorias, proteina, grasas, carbs, fecha')
-      .eq('idusuario', userId) // Usar userId en lugar de email
+      .eq('idusuario', userId)
       .gte('fecha', start.toISOString())
       .lte('fecha', end.toISOString());
 
@@ -50,7 +48,7 @@ export const getDashboardData = async (req, res) => {
       console.error(`[getDashboardData] Error fetching food data: ${foodError.message}`);
       throw new Error(foodError.message);
     }
-    console.log(`[getDashboardData] Fetched food data: ${JSON.stringify(foodData)}`);
+    //console.log(`[getDashboardData] Fetched food data: ${JSON.stringify(foodData)}`);
 
     // Calcular totales de calorías y macronutrientes
     const calorieIntake = {
@@ -80,30 +78,30 @@ export const getDashboardData = async (req, res) => {
         }
       });
     }
-    console.log(`[getDashboardData] Calculated calorie intake: ${JSON.stringify(calorieIntake)}`);
+    //console.log(`[getDashboardData] Calculated calorie intake: ${JSON.stringify(calorieIntake)}`);
 
     // Obtener meta de calorías
-    console.log('[getDashboardData] Fetching calorie goal from UserCalorieGoals...');
+    //console.log('[getDashboardData] Fetching calorie goal from UserCalorieGoals...');
     const { data: calorieGoalData, error: calorieGoalError } = await supabase
       .from('UserCalorieGoals')
       .select('calorie_goal')
-      .eq('id_usuario', userId) // Usar userId en lugar de email
+      .eq('id_usuario', userId)
       .single();
 
-    let calorieGoal = 2000; // Valor por defecto
+    let calorieGoal = 2000;
     if (calorieGoalError) {
       console.warn(`[getDashboardData] Error fetching calorie goal, using default (2000): ${calorieGoalError.message}`);
     } else if (calorieGoalData) {
       calorieGoal = parseFloat(calorieGoalData.calorie_goal) || 2000;
     }
-    console.log(`[getDashboardData] Fetched calorie goal: ${calorieGoal}`);
+    //console.log(`[getDashboardData] Fetched calorie goal: ${calorieGoal}`);
 
     // Obtener datos de agua
-    console.log('[getDashboardData] Fetching water data from aguaxusuario...');
+    //console.log('[getDashboardData] Fetching water data from aguaxusuario...');
     const { data: waterData, error: waterError } = await supabase
       .from('aguaxusuario')
       .select('aguasllenadas')
-      .eq('idusuario', userId) // Usar userId en lugar de email
+      .eq('idusuario', userId)
       .gte('fecha', start.toISOString())
       .lte('fecha', end.toISOString());
 
@@ -113,7 +111,7 @@ export const getDashboardData = async (req, res) => {
     } else if (waterData) {
       totalWater = waterData.reduce((sum, entry) => sum + (parseFloat(entry.cantidad) || 0), 0);
     }
-    console.log(`[getDashboardData] Calculated total water intake: ${totalWater}`);
+    //console.log(`[getDashboardData] Calculated total water intake: ${totalWater}`);
 
     // Preparar respuesta
     const response = {
@@ -121,7 +119,7 @@ export const getDashboardData = async (req, res) => {
       calorieGoal,
       waterIntake: totalWater,
     };
-    console.log(`[getDashboardData] Sending response: ${JSON.stringify(response)}`);
+    //console.log(`[getDashboardData] Sending response: ${JSON.stringify(response)}`);
 
     return res.status(200).json(response);
   } catch (err) {
