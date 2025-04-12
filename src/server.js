@@ -6,21 +6,37 @@ import { searchFoods, addFood, getFoodsByUserAndDate, deleteFood } from "./contr
 import { getWaterByUserAndDate, updateWaterData } from "./controllers/waterController.js";
 import { getExercises } from "./controllers/exerciseController.js";
 import { getUserRoutines, createRoutine, updateRoutine, deleteRoutine, getRoutineById } from "./controllers/RoutineController.js";
-import { calculateOneRepMax, saveOneRepMax, getRMProgress } from './controllers/rmController.js';
-import { getDashboardData } from './controllers/DashboardController.js'; // New import
-import swaggerUI from "swagger-ui-express"; 
+import { calculateOneRepMax, saveOneRepMax, getRMProgress } from "./controllers/rmController.js";
+import { getDashboardData } from "./controllers/DashboardController.js";
+import { analyzeFoodImage } from "./controllers/foodSearchIAController.js"; // Nuevo controlador
+import swaggerUI from "swagger-ui-express";
 import specs from "../swagger/swagger.js";
+import multer from "multer"; // Importamos multer
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Configuración de multer para manejar la carga de imágenes
+const storage = multer.memoryStorage(); // Almacenar en memoria (puedes usar diskStorage si prefieres guardar en disco)
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // Límite de 5MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("El archivo debe ser una imagen"), false);
+    }
+  },
+});
+
 // Middleware
 app.use(cors({
   origin: process.env.FRONTEND_URL,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type']
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type"],
 }));
 app.use(express.json());
 
@@ -46,15 +62,18 @@ app.delete("/api/routines/:id", deleteRoutine);
 app.get("/api/routines/:id", getRoutineById);
 
 // Rutas para el cálculo y almacenamiento del 1RM
-app.post('/api/1rm/calculate', calculateOneRepMax);
-app.post('/api/1rm/save', saveOneRepMax);
-app.get('/api/1rm/progress', getRMProgress);
+app.post("/api/1rm/calculate", calculateOneRepMax);
+app.post("/api/1rm/save", saveOneRepMax);
+app.get("/api/1rm/progress", getRMProgress);
+
+// Nueva ruta para el análisis de imágenes
+app.post("/api/foods/analyze-image", upload.single("image"), analyzeFoodImage);
 
 // Nueva ruta para el dashboard
 app.get("/api/dashboard", getDashboardData);
 
 // Configuración de Swagger UI
-app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(specs)); 
+app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(specs));
 
 // Iniciar el servidor
 app.listen(PORT, () => {
