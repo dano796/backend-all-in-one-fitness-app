@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
@@ -10,20 +10,29 @@ export const getDashboardData = async (req, res) => {
     //console.log(`[getDashboardData] Received request with email: ${email}, startDate: ${startDate}, endDate: ${endDate}`);
 
     if (!email || !startDate || !endDate) {
-      console.log('[getDashboardData] Missing required parameters');
-      return res.status(400).json({ error: 'Faltan datos requeridos: email, startDate y endDate son obligatorios' });
+      console.log("[getDashboardData] Missing required parameters");
+      return res.status(400).json({
+        error:
+          "Faltan datos requeridos: email, startDate y endDate son obligatorios",
+      });
     }
 
     //console.log('[getDashboardData] Fetching idusuario from Inicio Sesion...');
     const { data: userData, error: userError } = await supabase
-      .from('Inicio Sesion')
-      .select('idusuario')
-      .eq('Correo', email)
+      .from("Inicio Sesion")
+      .select("idusuario")
+      .eq("Correo", email)
       .single();
 
     if (userError || !userData) {
-      console.error(`[getDashboardData] Error fetching idusuario: ${userError?.message || 'User not found'}`);
-      return res.status(404).json({ error: 'Usuario no encontrado en la tabla Inicio Sesion' });
+      console.error(
+        `[getDashboardData] Error fetching idusuario: ${
+          userError?.message || "User not found"
+        }`
+      );
+      return res
+        .status(404)
+        .json({ error: "Usuario no encontrado en la tabla Inicio Sesion" });
     }
 
     const userId = userData.idusuario;
@@ -38,14 +47,16 @@ export const getDashboardData = async (req, res) => {
     // Obtener datos de comidas (calorías y macronutrientes)
     //console.log('[getDashboardData] Fetching food data from ComidasxUsuario...');
     const { data: foodData, error: foodError } = await supabase
-      .from('ComidasxUsuario')
-      .select('calorias, proteina, grasas, carbs, fecha')
-      .eq('idusuario', userId)
-      .gte('fecha', start.toISOString())
-      .lte('fecha', end.toISOString());
+      .from("ComidasxUsuario")
+      .select("calorias, proteina, grasas, carbs, fecha")
+      .eq("idusuario", userId)
+      .gte("fecha", start.toISOString())
+      .lte("fecha", end.toISOString());
 
     if (foodError) {
-      console.error(`[getDashboardData] Error fetching food data: ${foodError.message}`);
+      console.error(
+        `[getDashboardData] Error fetching food data: ${foodError.message}`
+      );
       throw new Error(foodError.message);
     }
     //console.log(`[getDashboardData] Fetched food data: ${JSON.stringify(foodData)}`);
@@ -66,8 +77,10 @@ export const getDashboardData = async (req, res) => {
         calorieIntake.totalFats += parseFloat(entry.grasas) || 0;
         calorieIntake.totalCarbs += parseFloat(entry.carbs) || 0;
 
-        const entryDate = new Date(entry.fecha).toISOString().split('T')[0];
-        const existingDay = calorieIntake.dailyBreakdown.find((day) => day.date === entryDate);
+        const entryDate = new Date(entry.fecha).toISOString().split("T")[0];
+        const existingDay = calorieIntake.dailyBreakdown.find(
+          (day) => day.date === entryDate
+        );
         if (existingDay) {
           existingDay.calories += parseFloat(entry.calorias) || 0;
         } else {
@@ -83,14 +96,16 @@ export const getDashboardData = async (req, res) => {
     // Obtener meta de calorías
     //console.log('[getDashboardData] Fetching calorie goal from UserCalorieGoals...');
     const { data: calorieGoalData, error: calorieGoalError } = await supabase
-      .from('UserCalorieGoals')
-      .select('calorie_goal')
-      .eq('id_usuario', userId)
+      .from("UserCalorieGoals")
+      .select("calorie_goal")
+      .eq("idusuario", userId)
       .single();
 
     let calorieGoal = 2000;
     if (calorieGoalError) {
-      console.warn(`[getDashboardData] Error fetching calorie goal, using default (2000): ${calorieGoalError.message}`);
+      console.warn(
+        `[getDashboardData] Error fetching calorie goal, using default (2000): ${calorieGoalError.message}`
+      );
     } else if (calorieGoalData) {
       calorieGoal = parseFloat(calorieGoalData.calorie_goal) || 2000;
     }
@@ -99,17 +114,22 @@ export const getDashboardData = async (req, res) => {
     // Obtener datos de agua
     //console.log('[getDashboardData] Fetching water data from aguaxusuario...');
     const { data: waterData, error: waterError } = await supabase
-      .from('aguaxusuario')
-      .select('aguasllenadas')
-      .eq('idusuario', userId)
-      .gte('fecha', start.toISOString())
-      .lte('fecha', end.toISOString());
+      .from("aguaxusuario")
+      .select("aguasllenadas")
+      .eq("idusuario", userId)
+      .gte("fecha", start.toISOString())
+      .lte("fecha", end.toISOString());
 
     let totalWater = 0;
     if (waterError) {
-      console.warn(`[getDashboardData] Error fetching water data, using default (0): ${waterError.message}`);
+      console.warn(
+        `[getDashboardData] Error fetching water data, using default (0): ${waterError.message}`
+      );
     } else if (waterData) {
-      totalWater = waterData.reduce((sum, entry) => sum + (parseFloat(entry.cantidad) || 0), 0);
+      totalWater = waterData.reduce(
+        (sum, entry) => sum + (parseFloat(entry.cantidad) || 0),
+        0
+      );
     }
     //console.log(`[getDashboardData] Calculated total water intake: ${totalWater}`);
 
@@ -124,6 +144,8 @@ export const getDashboardData = async (req, res) => {
     return res.status(200).json(response);
   } catch (err) {
     console.error(`[getDashboardData] Unexpected error: ${err.message || err}`);
-    return res.status(500).json({ error: err.message || 'Error al obtener los datos del dashboard' });
+    return res.status(500).json({
+      error: err.message || "Error al obtener los datos del dashboard",
+    });
   }
 };
